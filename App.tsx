@@ -1,16 +1,29 @@
 /**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
+ * Energy Tracker App
+ * Track, analyze, and reduce your energy consumption
+ * 
  * @format
  */
 
-import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+import React from 'react';
+import { StatusBar, StyleSheet, useColorScheme, View, ActivityIndicator } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { EnergyProvider, useEnergy } from './src/context/EnergyContext';
+import AppNavigator from './src/navigation/AppNavigator';
+
+function AppContent() {
+  const { isLoading } = useEnergy();
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4CAF50" />
+      </View>
+    );
+  }
+
+  return <AppNavigator />;
+}
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -18,27 +31,19 @@ function App() {
   return (
     <SafeAreaProvider>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
+      <EnergyProvider>
+        <AppContent />
+      </EnergyProvider>
     </SafeAreaProvider>
   );
 }
 
-function AppContent() {
-  const safeAreaInsets = useSafeAreaInsets();
-
-  return (
-    <View style={styles.container}>
-      <NewAppScreen
-        templateFileName="App.tsx"
-        safeAreaInsets={safeAreaInsets}
-      />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: {
+  loadingContainer: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
   },
 });
 
