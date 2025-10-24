@@ -5,14 +5,20 @@
  * @format
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StatusBar, StyleSheet, useColorScheme, View, ActivityIndicator } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { EnergyProvider, useEnergy } from './src/context/EnergyContext';
 import AppNavigator from './src/navigation/AppNavigator';
+import { initializeTts } from './src/utils/voice';
 
 function AppContent() {
   const { isLoading } = useEnergy();
+
+  useEffect(() => {
+    // Initialize text-to-speech on app start
+    initializeTts();
+  }, []);
 
   if (isLoading) {
     return (

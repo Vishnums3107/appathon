@@ -112,6 +112,19 @@ const SettingsScreen = () => {
 
           <View style={styles.switchRow}>
             <View style={styles.switchInfo}>
+              <Text style={styles.switchLabel}>🔊 Voice Tips</Text>
+              <Text style={styles.switchHint}>Enable text-to-speech for tips</Text>
+            </View>
+            <Switch
+              value={settings.voiceEnabled}
+              onValueChange={async (value) => await updateSettings({ voiceEnabled: value })}
+              trackColor={{ false: '#ccc', true: '#81C784' }}
+              thumbColor={settings.voiceEnabled ? '#4CAF50' : '#f4f3f4'}
+            />
+          </View>
+
+          <View style={styles.switchRow}>
+            <View style={styles.switchInfo}>
               <Text style={styles.switchLabel}>🌙 Dark Mode</Text>
               <Text style={styles.switchHint}>Enable dark theme (coming soon)</Text>
             </View>

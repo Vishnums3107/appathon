@@ -13,6 +13,10 @@ import ChatScreen from '../screens/ChatScreen';
 import ProgressScreen from '../screens/ProgressScreen';
 import ReportsScreen from '../screens/ReportsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import EnergyMapScreen from '../screens/EnergyMapScreen';
+import CommunityGoalsScreen from '../screens/CommunityGoalsScreen';
+import ChallengesScreen from '../screens/ChallengesScreen';
+import ImpactVisualizerScreen from '../screens/ImpactVisualizerScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -97,6 +101,38 @@ const AppNavigator = () => {
           options={{
             tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>📄</Text>,
             tabBarLabel: 'Reports',
+          }}
+        />
+        <Tab.Screen
+          name="Map"
+          component={EnergyMapScreen}
+          options={{
+            tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🗺️</Text>,
+            tabBarLabel: 'Map',
+          }}
+        />
+        <Tab.Screen
+          name="Community"
+          component={CommunityGoalsScreen}
+          options={{
+            tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🤝</Text>,
+            tabBarLabel: 'Community',
+          }}
+        />
+        <Tab.Screen
+          name="Challenges"
+          component={ChallengesScreen}
+          options={{
+            tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🎯</Text>,
+            tabBarLabel: 'Challenges',
+          }}
+        />
+        <Tab.Screen
+          name="Impact"
+          component={ImpactVisualizerScreen}
+          options={{
+            tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🌍</Text>,
+            tabBarLabel: 'Impact',
           }}
         />
         <Tab.Screen

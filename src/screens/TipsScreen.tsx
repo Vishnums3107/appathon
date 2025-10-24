@@ -1,20 +1,39 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useEnergy } from '../context/EnergyContext';
 import { formatEnergy } from '../utils/energy';
+import { speak, speakEnergyTip, stopSpeaking } from '../utils/voice';
 
 const TipsScreen = () => {
-  const { tips, weatherData } = useEnergy();
+  const { tips, weatherData, settings } = useEnergy();
+  const [speakingTipId, setSpeakingTipId] = useState<string | null>(null);
 
   const highPriorityTips = tips.filter(t => t.priority === 'high');
   const mediumPriorityTips = tips.filter(t => t.priority === 'medium');
   const lowPriorityTips = tips.filter(t => t.priority === 'low');
+
+  const handleSpeak = async (tip: typeof tips[0]) => {
+    if (!settings.voiceEnabled) {
+      Alert.alert('Voice Disabled', 'Enable voice in Settings to use this feature');
+      return;
+    }
+
+    if (speakingTipId === tip.id) {
+      await stopSpeaking();
+      setSpeakingTipId(null);
+    } else {
+      setSpeakingTipId(tip.id);
+      await speakEnergyTip(tip.title, tip.description, tip.potentialSavings);
+      setSpeakingTipId(null);
+    }
+  };
 
   const renderTipSection = (title: string, sectionTips: typeof tips, color: string) => {
     if (sectionTips.length === 0) return null;
@@ -32,11 +51,21 @@ const TipsScreen = () => {
           <View key={tip.id} style={styles.tipCard}>
             <View style={styles.tipHeader}>
               <Text style={styles.tipTitle}>{tip.title}</Text>
-              {tip.isPersonalized && (
-                <View style={styles.personalizedBadge}>
-                  <Text style={styles.personalizedText}>⭐ For You</Text>
-                </View>
-              )}
+              <View style={styles.tipActions}>
+                {tip.isPersonalized && (
+                  <View style={styles.personalizedBadge}>
+                    <Text style={styles.personalizedText}>⭐ For You</Text>
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={styles.voiceButton}
+                  onPress={() => handleSpeak(tip)}
+                >
+                  <Text style={styles.voiceIcon}>
+                    {speakingTipId === tip.id ? '🔊' : '🔈'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
             <Text style={styles.tipDescription}>{tip.description}</Text>
             <View style={styles.tipFooter}>
@@ -248,6 +277,17 @@ const styles = StyleSheet.create({
     color: '#333',
     flex: 1,
     marginRight: 10,
+  },
+  tipActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  voiceButton: {
+    padding: 4,
+  },
+  voiceIcon: {
+    fontSize: 20,
   },
   personalizedBadge: {
     backgroundColor: '#FFD700',

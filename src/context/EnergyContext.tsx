@@ -13,6 +13,11 @@ import {
   AppSettings,
   WeatherData,
   EnergyConsumption,
+  Room,
+  CommunityGoal,
+  Challenge,
+  DailySnapshot,
+  CountdownTimer,
 } from '../types';
 import {
   calculateEnergyConsumptions,
@@ -40,6 +45,11 @@ interface EnergyContextType {
   settings: AppSettings;
   weatherData: WeatherData | null;
   dashboardData: DashboardData | null;
+  rooms: Room[];
+  communityGoals: CommunityGoal[];
+  challenges: Challenge[];
+  snapshots: DailySnapshot[];
+  activeTimers: CountdownTimer[];
 
   // Actions
   addAppliance: (appliance: Omit<Appliance, 'id' | 'createdAt'>) => Promise<void>;
@@ -54,6 +64,25 @@ interface EnergyContextType {
   addGoal: (goal: Omit<UserGoal, 'id' | 'createdAt' | 'currentValue' | 'isAchieved'>) => Promise<void>;
   updateGoal: (id: string, updates: Partial<UserGoal>) => Promise<void>;
   deleteGoal: (id: string) => Promise<void>;
+  
+  addRoom: (room: Room) => Promise<void>;
+  updateRoom: (id: string, updates: Partial<Room>) => Promise<void>;
+  deleteRoom: (id: string) => Promise<void>;
+  assignApplianceToRoom: (applianceId: string, roomId: string) => Promise<void>;
+  
+  addCommunityGoal: (goal: Omit<CommunityGoal, 'id' | 'createdAt' | 'currentEnergy' | 'isAchieved'>) => Promise<void>;
+  updateCommunityGoal: (id: string, updates: Partial<CommunityGoal>) => Promise<void>;
+  
+  addChallenge: (challenge: Omit<Challenge, 'id' | 'currentProgress' | 'isCompleted'>) => Promise<void>;
+  updateChallenge: (id: string, updates: Partial<Challenge>) => Promise<void>;
+  completeChallenge: (id: string) => Promise<void>;
+  
+  generateDailySnapshot: () => Promise<DailySnapshot>;
+  saveDailySnapshot: (snapshot: DailySnapshot) => Promise<void>;
+  
+  addCountdownTimer: (timer: Omit<CountdownTimer, 'id'>) => Promise<void>;
+  updateTimer: (id: string) => Promise<void>;
+  removeTimer: (id: string) => Promise<void>;
   
   updateSettings: (updates: Partial<AppSettings>) => Promise<void>;
   refreshWeatherData: () => Promise<void>;
@@ -84,6 +113,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   notificationsEnabled: true,
   weatherLocation: 'New York',
   darkMode: false,
+  voiceEnabled: false,
 };
 
 const INITIAL_BADGES: Badge[] = [
@@ -133,6 +163,11 @@ export const EnergyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [communityGoals, setCommunityGoals] = useState<CommunityGoal[]>([]);
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [snapshots, setSnapshots] = useState<DailySnapshot[]>([]);
+  const [activeTimers, setActiveTimers] = useState<CountdownTimer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Load data from AsyncStorage on mount
@@ -159,6 +194,11 @@ export const EnergyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         storedStreak,
         storedBadges,
         storedSettings,
+        storedRooms,
+        storedCommunityGoals,
+        storedChallenges,
+        storedSnapshots,
+        storedTimers,
       ] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.APPLIANCES),
         AsyncStorage.getItem(STORAGE_KEYS.USAGE_RECORDS),
@@ -167,6 +207,11 @@ export const EnergyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         AsyncStorage.getItem(STORAGE_KEYS.STREAK),
         AsyncStorage.getItem(STORAGE_KEYS.BADGES),
         AsyncStorage.getItem(STORAGE_KEYS.SETTINGS),
+        AsyncStorage.getItem('@energy_app_rooms'),
+        AsyncStorage.getItem('@energy_app_community_goals'),
+        AsyncStorage.getItem('@energy_app_challenges'),
+        AsyncStorage.getItem('@energy_app_snapshots'),
+        AsyncStorage.getItem('@energy_app_timers'),
       ]);
 
       if (storedAppliances) setAppliances(JSON.parse(storedAppliances));
@@ -176,6 +221,11 @@ export const EnergyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       if (storedStreak) setStreak(JSON.parse(storedStreak));
       if (storedBadges) setBadges(JSON.parse(storedBadges));
       if (storedSettings) setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(storedSettings) });
+      if (storedRooms) setRooms(JSON.parse(storedRooms));
+      if (storedCommunityGoals) setCommunityGoals(JSON.parse(storedCommunityGoals));
+      if (storedChallenges) setChallenges(JSON.parse(storedChallenges));
+      if (storedSnapshots) setSnapshots(JSON.parse(storedSnapshots));
+      if (storedTimers) setActiveTimers(JSON.parse(storedTimers));
 
       // Load weather data
       setWeatherData(getMockWeatherData());
@@ -389,6 +439,156 @@ export const EnergyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     await AsyncStorage.setItem(STORAGE_KEYS.BADGES, JSON.stringify(updated));
   };
 
+  // Room management
+  const addRoom = async (room: Room) => {
+    const updated = [...rooms, room];
+    setRooms(updated);
+    await AsyncStorage.setItem('@energy_app_rooms', JSON.stringify(updated));
+  };
+
+  const updateRoom = async (id: string, updates: Partial<Room>) => {
+    const updated = rooms.map((r) => (r.id === id ? { ...r, ...updates } : r));
+    setRooms(updated);
+    await AsyncStorage.setItem('@energy_app_rooms', JSON.stringify(updated));
+  };
+
+  const deleteRoom = async (id: string) => {
+    const updated = rooms.filter((r) => r.id !== id);
+    setRooms(updated);
+    await AsyncStorage.setItem('@energy_app_rooms', JSON.stringify(updated));
+  };
+
+  const assignApplianceToRoom = async (applianceId: string, roomId: string) => {
+    const updated = rooms.map((room) => {
+      // Remove appliance from all rooms first
+      const appliances = room.appliances.filter(id => id !== applianceId);
+      // Add to target room
+      if (room.id === roomId) {
+        return { ...room, appliances: [...appliances, applianceId] };
+      }
+      return { ...room, appliances };
+    });
+    setRooms(updated);
+    await AsyncStorage.setItem('@energy_app_rooms', JSON.stringify(updated));
+  };
+
+  // Community Goals
+  const addCommunityGoal = async (goalData: Omit<CommunityGoal, 'id' | 'createdAt' | 'currentEnergy' | 'isAchieved'>) => {
+    const newGoal: CommunityGoal = {
+      ...goalData,
+      id: `community-goal-${Date.now()}`,
+      currentEnergy: 0,
+      isAchieved: false,
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [...communityGoals, newGoal];
+    setCommunityGoals(updated);
+    await AsyncStorage.setItem('@energy_app_community_goals', JSON.stringify(updated));
+  };
+
+  const updateCommunityGoal = async (id: string, updates: Partial<CommunityGoal>) => {
+    const updated = communityGoals.map((g) => (g.id === id ? { ...g, ...updates } : g));
+    setCommunityGoals(updated);
+    await AsyncStorage.setItem('@energy_app_community_goals', JSON.stringify(updated));
+  };
+
+  // Challenges
+  const addChallenge = async (challengeData: Omit<Challenge, 'id' | 'currentProgress' | 'isCompleted'>) => {
+    const newChallenge: Challenge = {
+      ...challengeData,
+      id: `challenge-${Date.now()}`,
+      currentProgress: 0,
+      isCompleted: false,
+    };
+    const updated = [...challenges, newChallenge];
+    setChallenges(updated);
+    await AsyncStorage.setItem('@energy_app_challenges', JSON.stringify(updated));
+  };
+
+  const updateChallenge = async (id: string, updates: Partial<Challenge>) => {
+    const updated = challenges.map((c) => (c.id === id ? { ...c, ...updates } : c));
+    setChallenges(updated);
+    await AsyncStorage.setItem('@energy_app_challenges', JSON.stringify(updated));
+  };
+
+  const completeChallenge = async (id: string) => {
+    await updateChallenge(id, { isCompleted: true });
+  };
+
+  // Daily Snapshots
+  const generateDailySnapshot = async (): Promise<DailySnapshot> => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const consumptions = calculateEnergyConsumptions(appliances, settings.electricityRate);
+    const totalEnergy = consumptions.reduce((sum, c) => sum + c.dailyConsumption, 0);
+    const totalCost = calculateCost(totalEnergy, settings.electricityRate);
+    const totalCO2 = calculateCO2Emissions(totalEnergy);
+
+    const topSaver = consumptions.length > 0 
+      ? consumptions.sort((a, b) => a.dailyConsumption - b.dailyConsumption)[0].applianceName
+      : 'No appliances';
+
+    const snapshot: DailySnapshot = {
+      id: `snapshot-${Date.now()}`,
+      date: today,
+      energyConsumed: totalEnergy,
+      moneySaved: totalCost,
+      co2Avoided: totalCO2,
+      topSavingAction: `Optimized ${topSaver}`,
+      streakDays: streak.currentStreak,
+    };
+
+    return snapshot;
+  };
+
+  const saveDailySnapshot = async (snapshot: DailySnapshot) => {
+    const updated = [...snapshots, snapshot];
+    setSnapshots(updated);
+    await AsyncStorage.setItem('@energy_app_snapshots', JSON.stringify(updated));
+  };
+
+  // Countdown Timers
+  const addCountdownTimer = async (timerData: Omit<CountdownTimer, 'id'>) => {
+    const newTimer: CountdownTimer = {
+      ...timerData,
+      id: `timer-${Date.now()}`,
+    };
+    const updated = [...activeTimers, newTimer];
+    setActiveTimers(updated);
+    await AsyncStorage.setItem('@energy_app_timers', JSON.stringify(updated));
+  };
+
+  const updateTimer = async (id: string) => {
+    const timer = activeTimers.find(t => t.id === id);
+    if (!timer) return;
+
+    const now = new Date();
+    const target = new Date(timer.targetTime);
+    const diff = target.getTime() - now.getTime();
+
+    if (diff <= 0) {
+      // Timer completed
+      await removeTimer(id);
+      return;
+    }
+
+    const remainingHours = Math.floor(diff / (1000 * 60 * 60));
+    const remainingMinutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+    const updated = activeTimers.map((t) =>
+      t.id === id
+        ? { ...t, remainingHours, remainingMinutes, currentTime: now.toISOString() }
+        : t
+    );
+    setActiveTimers(updated);
+    await AsyncStorage.setItem('@energy_app_timers', JSON.stringify(updated));
+  };
+
+  const removeTimer = async (id: string) => {
+    const updated = activeTimers.filter(t => t.id !== id);
+    setActiveTimers(updated);
+    await AsyncStorage.setItem('@energy_app_timers', JSON.stringify(updated));
+  };
+
   const value: EnergyContextType = {
     appliances,
     usageRecords,
@@ -400,6 +600,11 @@ export const EnergyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     settings,
     weatherData,
     dashboardData,
+    rooms,
+    communityGoals,
+    challenges,
+    snapshots,
+    activeTimers,
     addAppliance,
     updateAppliance,
     deleteAppliance,
@@ -410,6 +615,20 @@ export const EnergyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     addGoal,
     updateGoal,
     deleteGoal,
+    addRoom,
+    updateRoom,
+    deleteRoom,
+    assignApplianceToRoom,
+    addCommunityGoal,
+    updateCommunityGoal,
+    addChallenge,
+    updateChallenge,
+    completeChallenge,
+    generateDailySnapshot,
+    saveDailySnapshot,
+    addCountdownTimer,
+    updateTimer,
+    removeTimer,
     updateSettings,
     refreshWeatherData,
     saveUsageRecord,

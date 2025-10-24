@@ -154,4 +154,77 @@ export interface AppSettings {
   notificationsEnabled: boolean;
   weatherLocation: string;
   darkMode: boolean;
+  voiceEnabled: boolean;
+}
+
+// New types for additional features
+
+export interface Room {
+  id: string;
+  name: string;
+  appliances: string[]; // appliance IDs
+  position: { x: number; y: number }; // for map visualization
+}
+
+export interface EnergyHotspot {
+  roomId: string;
+  roomName: string;
+  totalConsumption: number; // kWh
+  totalCost: number;
+  percentage: number;
+  color: string; // heat map color
+}
+
+export interface CommunityGoal {
+  id: string;
+  title: string;
+  description: string;
+  targetEnergy: number; // kWh to save
+  currentEnergy: number; // kWh saved so far
+  participants: string[]; // user IDs or names
+  deadline: string; // ISO date string
+  isAchieved: boolean;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface Challenge {
+  id: string;
+  title: string;
+  description: string;
+  type: 'energy' | 'cost' | 'streak' | 'custom';
+  target: number;
+  currentProgress: number;
+  duration: number; // days
+  startDate: string;
+  endDate: string;
+  isCompleted: boolean;
+  reward?: string;
+  createdBy: string; // 'self' or user ID
+  participants?: string[];
+}
+
+export interface DailySnapshot {
+  id: string;
+  date: string;
+  energyConsumed: number; // kWh
+  moneySaved: number;
+  co2Avoided: number; // kg
+  topSavingAction: string;
+  streakDays: number;
+  imageUri?: string; // for sharing
+}
+
+export interface CountdownTimer {
+  id: string;
+  goalId: string;
+  goalTitle: string;
+  targetTime: string; // ISO date-time
+  currentTime: string;
+  remainingHours: number;
+  remainingMinutes: number;
+  targetValue: number;
+  currentValue: number;
+  unit: string; // 'kWh', '$', 'kg CO2'
+  isActive: boolean;
 }
