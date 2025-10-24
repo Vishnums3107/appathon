@@ -17,6 +17,7 @@ import EnergyMapScreen from '../screens/EnergyMapScreen';
 import CommunityGoalsScreen from '../screens/CommunityGoalsScreen';
 import ChallengesScreen from '../screens/ChallengesScreen';
 import ImpactVisualizerScreen from '../screens/ImpactVisualizerScreen';
+import LeaderboardScreen from '../screens/LeaderboardScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -133,6 +134,14 @@ const AppNavigator = () => {
           options={{
             tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🌍</Text>,
             tabBarLabel: 'Impact',
+          }}
+        />
+        <Tab.Screen
+          name="Leaderboard"
+          component={LeaderboardScreen}
+          options={{
+            tabBarIcon: ({ color }) => <Text style={{ fontSize: 24 }}>🏅</Text>,
+            tabBarLabel: 'Ranking',
           }}
         />
         <Tab.Screen
