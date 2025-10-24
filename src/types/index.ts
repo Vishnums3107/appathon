@@ -116,6 +116,13 @@ export interface UserGoal {
   createdAt: string;
 }
 
+// Alias for compatibility with services
+export type Goal = UserGoal;
+
+export interface Achievement extends Badge {
+  // Achievement is an alias for Badge
+}
+
 export interface Streak {
   currentStreak: number; // days
   longestStreak: number; // days

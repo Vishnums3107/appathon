@@ -106,11 +106,11 @@ class NotificationService {
    */
   private configurePushNotifications(): void {
     PushNotification.configure({
-      onRegister: (token) => {
+      onRegister: (token: any) => {
         console.log('Local notification token:', token);
       },
 
-      onNotification: (notification) => {
+      onNotification: (notification: any) => {
         console.log('Local notification received:', notification);
         notification.finish(PushNotification.FetchResult.NoData);
       },
@@ -175,7 +175,7 @@ class NotificationService {
           importance: channel.importance,
           vibrate: true,
         },
-        (created) => console.log(`Channel ${channel.channelId} created:`, created)
+        (created: boolean) => console.log(`Channel ${channel.channelId} created:`, created)
       );
     });
   }
@@ -466,7 +466,7 @@ class NotificationService {
    */
   public async getDeliveredNotifications(): Promise<any[]> {
     return new Promise((resolve) => {
-      PushNotification.getDeliveredNotifications((notifications) => {
+      PushNotification.getDeliveredNotifications((notifications: any[]) => {
         resolve(notifications);
       });
     });

@@ -94,16 +94,17 @@ class BlockchainService {
       }
 
       // Connect to Polygon Mumbai testnet (for demo)
-      this.provider = new ethers.providers.JsonRpcProvider(
+      // Note: Ethers v6 uses JsonRpcProvider differently
+      this.provider = new ethers.JsonRpcProvider(
         'https://rpc-mumbai.maticvigil.com/'
       );
       
       const connectedWallet = wallet.connect(this.provider);
-      const balance = await connectedWallet.getBalance();
+      const balance = await connectedWallet.provider.getBalance(wallet.address);
 
       this.wallet = {
         address: wallet.address,
-        balance: parseFloat(ethers.utils.formatEther(balance)),
+        balance: parseFloat(ethers.formatEther(balance)),
         network: 'Polygon Mumbai Testnet',
         isConnected: true,
       };

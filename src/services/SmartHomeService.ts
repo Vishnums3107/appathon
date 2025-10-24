@@ -56,7 +56,7 @@ class SmartHomeService {
   private static instance: SmartHomeService;
   private devices: SmartDevice[] = [];
   private hubs: SmartHomeHub[] = [];
-  private pollingInterval: NodeJS.Timeout | null = null;
+  private pollingInterval: ReturnType<typeof setInterval> | null = null;
 
   private constructor() {}
 

@@ -41,6 +41,11 @@ export const speak = async (text: string) => {
 };
 
 /**
+ * Speak text aloud (alias for compatibility)
+ */
+export const speakText = speak;
+
+/**
  * Stop speaking
  */
 export const stopSpeaking = async () => {
