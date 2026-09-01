@@ -62,9 +62,16 @@ class VoiceCommandService {
         await this.stopListening();
       }
 
-      await Voice.start('en-US');
-      this.isListening = true;
       await speakText('Listening for commands');
+      setTimeout(async () => {
+        try {
+          await Voice.start('en-US');
+          this.isListening = true;
+        } catch (e) {
+          console.error('Failed to start Voice:', e);
+          this.isListening = false;
+        }
+      }, 500);
     } catch (error) {
       console.error('Failed to start listening:', error);
       this.isListening = false;

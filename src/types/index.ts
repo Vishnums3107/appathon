@@ -144,6 +144,8 @@ export interface WeatherData {
   condition: string;
   humidity: number;
   season: 'spring' | 'summer' | 'fall' | 'winter';
+  location: string;
+  source: 'live' | 'fallback';
 }
 
 export interface ChatMessage {

@@ -1,8 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Appliance,
-  ApplianceCategory,
   UsageRecord,
   DashboardData,
   EnergyTip,
@@ -12,7 +11,6 @@ import {
   Badge,
   AppSettings,
   WeatherData,
-  EnergyConsumption,
   Room,
   CommunityGoal,
   Challenge,
@@ -26,11 +24,9 @@ import {
   calculateCost,
   calculateCO2Emissions,
   co2ToTrees,
-  generateTrendData,
-  calculateComparison,
 } from '../utils/energy';
 import { generateEnergyTips, getWeatherBasedTips } from '../utils/tips';
-import { getMockWeatherData } from '../utils/weather';
+import { fetchWeatherData } from '../utils/weather';
 import { format } from 'date-fns';
 
 interface EnergyContextType {
@@ -76,6 +72,7 @@ interface EnergyContextType {
   addChallenge: (challenge: Omit<Challenge, 'id' | 'currentProgress' | 'isCompleted'>) => Promise<void>;
   updateChallenge: (id: string, updates: Partial<Challenge>) => Promise<void>;
   completeChallenge: (id: string) => Promise<void>;
+  deleteChallenge: (id: string) => Promise<void>;
   
   generateDailySnapshot: () => Promise<DailySnapshot>;
   saveDailySnapshot: (snapshot: DailySnapshot) => Promise<void>;
@@ -170,6 +167,40 @@ export const EnergyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [activeTimers, setActiveTimers] = useState<CountdownTimer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const refreshDashboard = useCallback(() => {
+    if (appliances.length === 0) {
+      setDashboardData(null);
+      setTips([]);
+      return;
+    }
+
+    const consumptions = calculateEnergyConsumptions(
+      appliances,
+      settings.electricityRate,
+      settings.co2Factor,
+    );
+    const categoryConsumptions = calculateConsumptionByCategory(appliances, settings.electricityRate);
+    const topConsumers = getTopConsumers(consumptions, 3);
+    const totalEnergyConsumed = consumptions.reduce((sum, consumption) => sum + consumption.monthlyConsumption, 0);
+    const totalCost = calculateCost(totalEnergyConsumed, settings.electricityRate);
+    const totalCO2 = calculateCO2Emissions(totalEnergyConsumed, settings.co2Factor);
+
+    setDashboardData({
+      totalEnergyConsumed,
+      totalCost,
+      totalCO2Saved: totalCO2,
+      treesEquivalent: co2ToTrees(totalCO2),
+      topConsumers,
+      consumptionByCategory: categoryConsumptions,
+    });
+
+    const energyTips = generateEnergyTips(appliances, consumptions);
+    const weatherTips = weatherData
+      ? getWeatherBasedTips(weatherData.temperature, weatherData.season, weatherData.humidity)
+      : [];
+    setTips([...energyTips, ...weatherTips]);
+  }, [appliances, settings.co2Factor, settings.electricityRate, weatherData]);
+
   // Load data from AsyncStorage on mount
   useEffect(() => {
     loadAllData();
@@ -177,10 +208,37 @@ export const EnergyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   // Refresh dashboard when appliances change
   useEffect(() => {
-    if (!isLoading && appliances.length > 0) {
+    if (!isLoading) {
       refreshDashboard();
     }
-  }, [appliances, settings]);
+  }, [isLoading, refreshDashboard]);
+
+  // Goals represent monthly limits. Their values stay in sync with the latest
+  // dashboard calculation so goal progress remains meaningful after any edit.
+  useEffect(() => {
+    if (!dashboardData || goals.length === 0) return;
+
+    const updatedGoals = goals.map((goal) => {
+      const currentValue = goal.type === 'consumption'
+        ? dashboardData.totalEnergyConsumed
+        : goal.type === 'cost'
+          ? dashboardData.totalCost
+          : dashboardData.totalCO2Saved;
+      const isAchieved = currentValue <= goal.target;
+      return { ...goal, currentValue, isAchieved };
+    });
+
+    const hasChanged = updatedGoals.some((goal, index) =>
+      goal.currentValue !== goals[index].currentValue || goal.isAchieved !== goals[index].isAchieved
+    );
+
+    if (hasChanged) {
+      setGoals(updatedGoals);
+      AsyncStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(updatedGoals)).catch((error) => {
+        console.error('Error saving goal progress:', error);
+      });
+    }
+  }, [dashboardData, goals]);
 
   const loadAllData = async () => {
     try {
@@ -220,57 +278,30 @@ export const EnergyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       if (storedGoals) setGoals(JSON.parse(storedGoals));
       if (storedStreak) setStreak(JSON.parse(storedStreak));
       if (storedBadges) setBadges(JSON.parse(storedBadges));
-      if (storedSettings) setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(storedSettings) });
+      const loadedSettings = storedSettings
+        ? { ...DEFAULT_SETTINGS, ...JSON.parse(storedSettings) }
+        : DEFAULT_SETTINGS;
+      setSettings(loadedSettings);
       if (storedRooms) setRooms(JSON.parse(storedRooms));
       if (storedCommunityGoals) setCommunityGoals(JSON.parse(storedCommunityGoals));
       if (storedChallenges) setChallenges(JSON.parse(storedChallenges));
       if (storedSnapshots) setSnapshots(JSON.parse(storedSnapshots));
       if (storedTimers) setActiveTimers(JSON.parse(storedTimers));
 
-      // Load weather data
-      setWeatherData(getMockWeatherData());
+      // Weather improves tips, but it must never hold up the local-first app
+      // shell. Fetch it after persistence is restored so an offline or slow
+      // network cannot leave the user on the launch loader.
+      fetchWeatherData(loadedSettings.weatherLocation)
+        .then(setWeatherData)
+        .catch((error) => {
+          console.warn('Weather refresh failed after startup:', error);
+        });
       
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const refreshDashboard = () => {
-    if (appliances.length === 0) {
-      setDashboardData(null);
-      setTips([]);
-      return;
-    }
-
-    const consumptions = calculateEnergyConsumptions(appliances, settings.electricityRate);
-    const categoryConsumptions = calculateConsumptionByCategory(appliances, settings.electricityRate);
-    const topConsumers = getTopConsumers(consumptions, 3);
-
-    const totalEnergyConsumed = consumptions.reduce(
-      (sum, c) => sum + c.monthlyConsumption,
-      0
-    );
-    const totalCost = calculateCost(totalEnergyConsumed, settings.electricityRate);
-    const totalCO2 = calculateCO2Emissions(totalEnergyConsumed);
-    const treesEquivalent = co2ToTrees(totalCO2);
-
-    setDashboardData({
-      totalEnergyConsumed,
-      totalCost,
-      totalCO2Saved: totalCO2,
-      treesEquivalent,
-      topConsumers,
-      consumptionByCategory: categoryConsumptions,
-    });
-
-    // Generate tips
-    const energyTips = generateEnergyTips(appliances, consumptions);
-    const weatherTips = weatherData
-      ? getWeatherBasedTips(weatherData.temperature, weatherData.season, weatherData.humidity)
-      : [];
-    setTips([...energyTips, ...weatherTips]);
   };
 
   const addAppliance = async (applianceData: Omit<Appliance, 'id' | 'createdAt'>) => {
@@ -367,20 +398,26 @@ export const EnergyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const updated = { ...settings, ...updates };
     setSettings(updated);
     await AsyncStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(updated));
+    if (updates.weatherLocation !== undefined && updates.weatherLocation !== settings.weatherLocation) {
+      setWeatherData(await fetchWeatherData(updated.weatherLocation));
+    }
   };
 
   const refreshWeatherData = async () => {
-    const data = getMockWeatherData();
-    setWeatherData(data);
+    setWeatherData(await fetchWeatherData(settings.weatherLocation));
   };
 
   const saveUsageRecord = async () => {
     if (appliances.length === 0) return;
 
-    const consumptions = calculateEnergyConsumptions(appliances, settings.electricityRate);
+    const consumptions = calculateEnergyConsumptions(
+      appliances,
+      settings.electricityRate,
+      settings.co2Factor,
+    );
     const totalConsumption = consumptions.reduce((sum, c) => sum + c.dailyConsumption, 0);
     const totalCost = calculateCost(totalConsumption, settings.electricityRate);
-    const totalCO2 = calculateCO2Emissions(totalConsumption);
+    const totalCO2 = calculateCO2Emissions(totalConsumption, settings.co2Factor);
 
     const record: UsageRecord = {
       id: `record-${Date.now()}`,
@@ -391,9 +428,14 @@ export const EnergyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       totalCO2,
     };
 
-    const updated = [...usageRecords, record];
+    // Keep one definitive snapshot per day. This makes trend and report data
+    // deterministic even if a user updates their log more than once.
+    const updated = [...usageRecords.filter((item) => item.date !== record.date), record]
+      .sort((a, b) => a.date.localeCompare(b.date));
     setUsageRecords(updated);
     await AsyncStorage.setItem(STORAGE_KEYS.USAGE_RECORDS, JSON.stringify(updated));
+    await updateStreak();
+    await checkPerformanceBadges(updated);
   };
 
   const updateStreak = async () => {
@@ -429,14 +471,43 @@ export const EnergyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   };
 
-  const awardBadge = async (badgeId: string) => {
-    const updated = badges.map((badge) =>
-      badge.id === badgeId && !badge.isEarned
-        ? { ...badge, isEarned: true, earnedAt: new Date().toISOString() }
-        : badge
+  const awardBadges = async (badgeIds: string[]) => {
+    setBadges((currentBadges) => {
+      const updated = currentBadges.map((badge) =>
+        badgeIds.includes(badge.id) && !badge.isEarned
+          ? { ...badge, isEarned: true, earnedAt: new Date().toISOString() }
+          : badge
+      );
+      if (updated.some((badge, index) => badge.isEarned !== currentBadges[index].isEarned)) {
+        AsyncStorage.setItem(STORAGE_KEYS.BADGES, JSON.stringify(updated)).catch((error) => {
+          console.error('Error saving badges:', error);
+        });
+      }
+      return updated;
+    });
+  };
+
+  const awardBadge = async (badgeId: string) => awardBadges([badgeId]);
+
+  const checkPerformanceBadges = async (records: UsageRecord[]) => {
+    if (records.length < 2) return;
+
+    const ordered = [...records].sort((a, b) => a.date.localeCompare(b.date));
+    const latest = ordered[ordered.length - 1];
+    const baselineRecords = ordered.slice(Math.max(0, ordered.length - 8), -1);
+    const baseline = baselineRecords.reduce((sum, record) => sum + record.totalConsumption, 0) / baselineRecords.length;
+    if (baseline <= 0) return;
+
+    const badgeIds: string[] = [];
+    if (latest.totalConsumption <= baseline * 0.8) badgeIds.push('badge-3');
+
+    const avoidedCO2 = ordered.reduce(
+      (sum, record) => sum + Math.max(baseline - record.totalConsumption, 0) * settings.co2Factor,
+      0,
     );
-    setBadges(updated);
-    await AsyncStorage.setItem(STORAGE_KEYS.BADGES, JSON.stringify(updated));
+    if (co2ToTrees(avoidedCO2) >= 10) badgeIds.push('badge-4');
+
+    if (badgeIds.length > 0) await awardBadges(badgeIds);
   };
 
   // Room management
@@ -461,12 +532,12 @@ export const EnergyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const assignApplianceToRoom = async (applianceId: string, roomId: string) => {
     const updated = rooms.map((room) => {
       // Remove appliance from all rooms first
-      const appliances = room.appliances.filter(id => id !== applianceId);
+      const roomApplianceIds = room.appliances.filter(id => id !== applianceId);
       // Add to target room
       if (room.id === roomId) {
-        return { ...room, appliances: [...appliances, applianceId] };
+        return { ...room, appliances: [...roomApplianceIds, applianceId] };
       }
-      return { ...room, appliances };
+      return { ...room, appliances: roomApplianceIds };
     });
     setRooms(updated);
     await AsyncStorage.setItem('@energy_app_rooms', JSON.stringify(updated));
@@ -515,13 +586,23 @@ export const EnergyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     await updateChallenge(id, { isCompleted: true });
   };
 
+  const deleteChallenge = async (id: string) => {
+    const updated = challenges.filter((c) => c.id !== id);
+    setChallenges(updated);
+    await AsyncStorage.setItem('@energy_app_challenges', JSON.stringify(updated));
+  };
+
   // Daily Snapshots
   const generateDailySnapshot = async (): Promise<DailySnapshot> => {
     const today = format(new Date(), 'yyyy-MM-dd');
-    const consumptions = calculateEnergyConsumptions(appliances, settings.electricityRate);
+    const consumptions = calculateEnergyConsumptions(
+      appliances,
+      settings.electricityRate,
+      settings.co2Factor,
+    );
     const totalEnergy = consumptions.reduce((sum, c) => sum + c.dailyConsumption, 0);
     const totalCost = calculateCost(totalEnergy, settings.electricityRate);
-    const totalCO2 = calculateCO2Emissions(totalEnergy);
+    const totalCO2 = calculateCO2Emissions(totalEnergy, settings.co2Factor);
 
     const topSaver = consumptions.length > 0 
       ? consumptions.sort((a, b) => a.dailyConsumption - b.dailyConsumption)[0].applianceName
@@ -624,6 +705,7 @@ export const EnergyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     addChallenge,
     updateChallenge,
     completeChallenge,
+    deleteChallenge,
     generateDailySnapshot,
     saveDailySnapshot,
     addCountdownTimer,

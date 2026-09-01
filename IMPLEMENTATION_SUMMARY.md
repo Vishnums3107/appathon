@@ -18,7 +18,7 @@
   - Auto-save functionality
   - Real-time form validation
   - Category selection
-  - Power rating, hours, and quantity inputs
+  - Power rating, hours, and quantity      bcvc   inputs
 
 #### 2. ✅ Instant Energy Audit
 - **File:** `src/screens/EnergyAuditScreen.tsx`

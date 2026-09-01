@@ -1,14 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Animated,
   Share as RNShare,
   Alert,
+  StatusBar,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import { Colors, Typography, Spacing, Radius, Shadows } from '../theme';
 import { useEnergy } from '../context/EnergyContext';
 import { formatEnergy, formatCost, formatCO2 } from '../utils/energy';
 import { format } from 'date-fns';
@@ -28,33 +30,7 @@ const ImpactVisualizerScreen = () => {
     updateTimer,
   } = useEnergy();
 
-  const [animatedCO2] = useState(new Animated.Value(0));
-  const [animatedTrees] = useState(new Animated.Value(0));
-  const [animatedEnergy] = useState(new Animated.Value(0));
   const viewShotRef = useRef<ViewShot>(null);
-
-  useEffect(() => {
-    // Animate values on mount
-    if (dashboardData) {
-      Animated.parallel([
-        Animated.timing(animatedCO2, {
-          toValue: dashboardData.totalCO2Saved,
-          duration: 2000,
-          useNativeDriver: false,
-        }),
-        Animated.timing(animatedTrees, {
-          toValue: dashboardData.treesEquivalent,
-          duration: 2000,
-          useNativeDriver: false,
-        }),
-        Animated.timing(animatedEnergy, {
-          toValue: dashboardData.totalEnergyConsumed,
-          duration: 2000,
-          useNativeDriver: false,
-        }),
-      ]).start();
-    }
-  }, [dashboardData]);
 
   useEffect(() => {
     // Update active timers every minute
@@ -67,14 +43,14 @@ const ImpactVisualizerScreen = () => {
     }, 60000);
 
     return () => clearInterval(interval);
-  }, [activeTimers]);
+  }, [activeTimers, updateTimer]);
 
   const handleGenerateSnapshot = async () => {
     try {
       const snapshot = await generateDailySnapshot();
       await saveDailySnapshot(snapshot);
       Alert.alert('Success', 'Daily snapshot saved!');
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to generate snapshot');
     }
   };
@@ -82,7 +58,7 @@ const ImpactVisualizerScreen = () => {
   const handleShareSnapshot = async () => {
     try {
       if (!viewShotRef.current || !viewShotRef.current.capture) return;
-      
+
       const uri = await viewShotRef.current.capture();
       await RNShare.share({
         title: 'My Energy Impact',
@@ -102,7 +78,7 @@ const ImpactVisualizerScreen = () => {
 
     const goal = goals[0]; // Use first goal for demo
     const hoursToGoal = 24; // Example: 24 hours to achieve goal
-    
+
     const targetTime = new Date(Date.now() + hoursToGoal * 60 * 60 * 1000).toISOString();
 
     addCountdownTimer({
@@ -123,10 +99,11 @@ const ImpactVisualizerScreen = () => {
 
   if (!dashboardData) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyIcon}>🌍</Text>
-        <Text style={styles.emptyTitle}>No Data Available</Text>
-        <Text style={styles.emptyText}>Add appliances to see your energy impact</Text>
+      <View style={s.emptyContainer}>
+        <StatusBar barStyle="light-content" backgroundColor={Colors.dark} />
+        <Text style={s.emptyIcon}>🌍</Text>
+        <Text style={s.emptyTitle}>No Data Available</Text>
+        <Text style={s.emptyText}>Add appliances to see your energy impact</Text>
       </View>
     );
   }
@@ -134,84 +111,76 @@ const ImpactVisualizerScreen = () => {
   const todaySnapshot = snapshots.find(s => s.date === format(new Date(), 'yyyy-MM-dd'));
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>🌍 Energy Impact</Text>
-        <Text style={styles.subtitle}>Visualize your environmental contribution</Text>
-      </View>
+    <ScrollView style={s.container}>
+      <StatusBar barStyle="light-content" backgroundColor={Colors.dark} />
+      <LinearGradient colors={['#0B1120', '#162032']} style={s.header}>
+        <Text style={s.headerLabel}>ENERGY IMPACT</Text>
+        <Text style={s.headerTitle}>Impact Visualizer</Text>
+      </LinearGradient>
 
       {/* Animated Impact Visualization */}
-      <ViewShot ref={viewShotRef} style={styles.snapshotContainer}>
-        <View style={styles.impactSection}>
-          <Text style={styles.sectionTitle}>📊 Today's Impact</Text>
-          
-          <View style={styles.impactCard}>
-            <View style={styles.impactRow}>
-              <View style={styles.impactItem}>
-                <Text style={styles.impactIcon}>⚡</Text>
-                <Animated.Text style={styles.impactValue}>
-                  {animatedEnergy.interpolate({
-                    inputRange: [0, dashboardData.totalEnergyConsumed],
-                    outputRange: ['0', dashboardData.totalEnergyConsumed.toFixed(1)],
-                  })}
-                </Animated.Text>
-                <Text style={styles.impactLabel}>kWh Used</Text>
+      <ViewShot ref={viewShotRef} style={s.snapshotContainer}>
+        <View style={s.impactSection}>
+          <Text style={s.sectionTitle}>Today's Impact</Text>
+
+          <View style={s.impactCard}>
+            <View style={s.impactRow}>
+              <View style={s.impactItem}>
+                <Text style={s.impactIcon}>⚡</Text>
+                <Text style={s.impactValue}>
+                  {dashboardData.totalEnergyConsumed.toFixed(1)}
+                </Text>
+                <Text style={s.impactLabel}>kWh Used</Text>
               </View>
 
-              <View style={styles.impactItem}>
-                <Text style={styles.impactIcon}>🌍</Text>
-                <Animated.Text style={styles.impactValue}>
-                  {animatedCO2.interpolate({
-                    inputRange: [0, dashboardData.totalCO2Saved],
-                    outputRange: ['0', dashboardData.totalCO2Saved.toFixed(1)],
-                  })}
-                </Animated.Text>
-                <Text style={styles.impactLabel}>kg CO₂</Text>
+              <View style={s.impactItem}>
+                <Text style={s.impactIcon}>🌍</Text>
+                <Text style={s.impactValue}>
+                  {dashboardData.totalCO2Saved.toFixed(1)}
+                </Text>
+                <Text style={s.impactLabel}>kg CO₂</Text>
               </View>
 
-              <View style={styles.impactItem}>
-                <Text style={styles.impactIcon}>🌳</Text>
-                <Animated.Text style={styles.impactValue}>
-                  {animatedTrees.interpolate({
-                    inputRange: [0, dashboardData.treesEquivalent],
-                    outputRange: ['0', dashboardData.treesEquivalent.toFixed(1)],
-                  })}
-                </Animated.Text>
-                <Text style={styles.impactLabel}>Trees Needed</Text>
+              <View style={s.impactItem}>
+                <Text style={s.impactIcon}>🌳</Text>
+                <Text style={s.impactValue}>
+                  {dashboardData.treesEquivalent.toFixed(1)}
+                </Text>
+                <Text style={s.impactLabel}>Trees Needed</Text>
               </View>
             </View>
 
-            <View style={styles.streakBox}>
-              <Text style={styles.streakIcon}>🔥</Text>
-              <Text style={styles.streakText}>{streak.currentStreak} Day Streak</Text>
+            <View style={s.streakBox}>
+              <Text style={s.streakIcon}>🔥</Text>
+              <Text style={s.streakText}>{streak.currentStreak} Day Streak</Text>
             </View>
           </View>
         </View>
 
         {/* Mini Visualization Videos (Animated) */}
-        <View style={styles.videoSection}>
-          <Text style={styles.sectionTitle}>🎬 Impact Visualization</Text>
-          
-          <View style={styles.videoCard}>
-            <Text style={styles.videoTitle}>CO₂ to Trees</Text>
-            <View style={styles.treeAnimation}>
+        <View style={s.videoSection}>
+          <Text style={s.sectionTitle}>Impact Visualization</Text>
+
+          <View style={s.videoCard}>
+            <Text style={s.videoTitle}>CO₂ to Trees</Text>
+            <View style={s.treeAnimation}>
               {[...Array(Math.min(Math.ceil(dashboardData.treesEquivalent), 10))].map((_, i) => (
-                <Text key={i} style={styles.treeEmoji}>🌳</Text>
+                <Text key={i} style={s.treeEmoji}>🌳</Text>
               ))}
             </View>
-            <Text style={styles.videoDesc}>
+            <Text style={s.videoDesc}>
               {dashboardData.treesEquivalent.toFixed(1)} trees needed to offset your monthly CO₂
             </Text>
           </View>
 
-          <View style={styles.videoCard}>
-            <Text style={styles.videoTitle}>Energy Saved = 💡</Text>
-            <View style={styles.bulbAnimation}>
+          <View style={s.videoCard}>
+            <Text style={s.videoTitle}>Energy Saved = 💡</Text>
+            <View style={s.bulbAnimation}>
               {[...Array(Math.min(Math.ceil(dashboardData.totalEnergyConsumed / 10), 10))].map((_, i) => (
-                <Text key={i} style={styles.bulbEmoji}>💡</Text>
+                <Text key={i} style={s.bulbEmoji}>💡</Text>
               ))}
             </View>
-            <Text style={styles.videoDesc}>
+            <Text style={s.videoDesc}>
               Equivalent to {Math.floor(dashboardData.totalEnergyConsumed / 0.06)} LED bulbs running for 1 hour
             </Text>
           </View>
@@ -219,80 +188,95 @@ const ImpactVisualizerScreen = () => {
       </ViewShot>
 
       {/* Daily Snapshot */}
-      <View style={styles.snapshotSection}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>📸 Daily Snapshot</Text>
-          <TouchableOpacity style={styles.shareButton} onPress={handleShareSnapshot}>
-            <Text style={styles.shareButtonText}>Share</Text>
+      <View style={s.snapshotSection}>
+        <View style={s.sectionHeader}>
+          <Text style={s.sectionTitle}>Daily Snapshot</Text>
+          <TouchableOpacity style={s.shareButton} onPress={handleShareSnapshot}>
+            <LinearGradient
+              colors={['#00E676', '#00C853']}
+              style={s.shareButtonGradient}
+            >
+              <Text style={s.shareButtonText}>Share</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
 
         {todaySnapshot ? (
-          <View style={styles.snapshotCard}>
-            <Text style={styles.snapshotDate}>{format(new Date(), 'EEEE, MMMM dd, yyyy')}</Text>
-            <View style={styles.snapshotStats}>
-              <View style={styles.snapshotStat}>
-                <Text style={styles.snapshotLabel}>Energy</Text>
-                <Text style={styles.snapshotValue}>{formatEnergy(todaySnapshot.energyConsumed)}</Text>
+          <View style={s.snapshotCard}>
+            <Text style={s.snapshotDate}>{format(new Date(), 'EEEE, MMMM dd, yyyy')}</Text>
+            <View style={s.snapshotStats}>
+              <View style={s.snapshotStat}>
+                <Text style={s.snapshotLabel}>Energy</Text>
+                <Text style={s.snapshotValue}>{formatEnergy(todaySnapshot.energyConsumed)}</Text>
               </View>
-              <View style={styles.snapshotStat}>
-                <Text style={styles.snapshotLabel}>Cost</Text>
-                <Text style={styles.snapshotValue}>{formatCost(todaySnapshot.moneySaved, settings.currency)}</Text>
+              <View style={s.snapshotStat}>
+                <Text style={s.snapshotLabel}>Cost</Text>
+                <Text style={s.snapshotValue}>{formatCost(todaySnapshot.moneySaved, settings.currency)}</Text>
               </View>
-              <View style={styles.snapshotStat}>
-                <Text style={styles.snapshotLabel}>CO₂</Text>
-                <Text style={styles.snapshotValue}>{formatCO2(todaySnapshot.co2Avoided)}</Text>
+              <View style={s.snapshotStat}>
+                <Text style={s.snapshotLabel}>CO₂</Text>
+                <Text style={s.snapshotValue}>{formatCO2(todaySnapshot.co2Avoided)}</Text>
               </View>
             </View>
-            <Text style={styles.topAction}>🏆 {todaySnapshot.topSavingAction}</Text>
+            <Text style={s.topAction}>🏆 {todaySnapshot.topSavingAction}</Text>
           </View>
         ) : (
-          <TouchableOpacity style={styles.generateButton} onPress={handleGenerateSnapshot}>
-            <Text style={styles.generateButtonText}>Generate Today's Snapshot</Text>
+          <TouchableOpacity style={s.generateButton} onPress={handleGenerateSnapshot}>
+            <LinearGradient
+              colors={['#00E676', '#00C853']}
+              style={s.generateButtonGradient}
+            >
+              <Text style={s.generateButtonText}>Generate Today's Snapshot</Text>
+            </LinearGradient>
           </TouchableOpacity>
         )}
       </View>
 
       {/* Eco Goal Countdown Timers */}
-      <View style={styles.timerSection}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>⏰ Goal Countdown</Text>
-          <TouchableOpacity style={styles.addTimerButton} onPress={handleStartGoalTimer}>
-            <Text style={styles.addTimerText}>+ Start</Text>
+      <View style={s.timerSection}>
+        <View style={s.sectionHeader}>
+          <Text style={s.sectionTitle}>Goal Countdown</Text>
+          <TouchableOpacity style={s.addTimerButton} onPress={handleStartGoalTimer}>
+            <LinearGradient
+              colors={['#00E676', '#00C853']}
+              style={s.addTimerGradient}
+            >
+              <Text style={s.addTimerText}>+ Start</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
 
         {activeTimers.length === 0 ? (
-          <View style={styles.noTimers}>
-            <Text style={styles.noTimersText}>No active timers. Start one to track your goals!</Text>
+          <View style={s.noTimers}>
+            <Text style={s.noTimersText}>No active timers. Start one to track your goals!</Text>
           </View>
         ) : (
           activeTimers.map((timer) => (
-            <View key={timer.id} style={styles.timerCard}>
-              <Text style={styles.timerTitle}>{timer.goalTitle}</Text>
-              <View style={styles.timerDisplay}>
-                <View style={styles.timeBox}>
-                  <Text style={styles.timeValue}>{timer.remainingHours}</Text>
-                  <Text style={styles.timeLabel}>Hours</Text>
+            <View key={timer.id} style={s.timerCard}>
+              <Text style={s.timerTitle}>{timer.goalTitle}</Text>
+              <View style={s.timerDisplay}>
+                <View style={s.timeBox}>
+                  <Text style={s.timeValue}>{timer.remainingHours}</Text>
+                  <Text style={s.timeLabel}>Hours</Text>
                 </View>
-                <Text style={styles.timeSeparator}>:</Text>
-                <View style={styles.timeBox}>
-                  <Text style={styles.timeValue}>{timer.remainingMinutes}</Text>
-                  <Text style={styles.timeLabel}>Minutes</Text>
+                <Text style={s.timeSeparator}>:</Text>
+                <View style={s.timeBox}>
+                  <Text style={s.timeValue}>{timer.remainingMinutes}</Text>
+                  <Text style={s.timeLabel}>Minutes</Text>
                 </View>
               </View>
-              <Text style={styles.timerGoal}>
+              <Text style={s.timerGoal}>
                 Goal: {timer.targetValue} {timer.unit}
               </Text>
-              <View style={styles.timerProgress}>
+              <View style={s.timerProgress}>
                 <View
                   style={[
-                    styles.timerProgressFill,
+                    s.timerProgressFill,
                     { width: `${(timer.currentValue / timer.targetValue) * 100}%` },
                   ]}
                 />
               </View>
-              <Text style={styles.timerHint}>
+              <Text style={s.timerHint}>
                 Keep lights off for {timer.remainingHours}h {timer.remainingMinutes}m more to save {(timer.targetValue - timer.currentValue).toFixed(1)} {timer.unit}
               </Text>
             </View>
@@ -302,16 +286,16 @@ const ImpactVisualizerScreen = () => {
 
       {/* Recent Snapshots */}
       {snapshots.length > 0 && (
-        <View style={styles.historySection}>
-          <Text style={styles.sectionTitle}>📅 Snapshot History</Text>
+        <View style={s.historySection}>
+          <Text style={s.sectionTitle}>Snapshot History</Text>
           {snapshots.slice(-7).reverse().map((snapshot) => (
-            <View key={snapshot.id} style={styles.historyItem}>
-              <Text style={styles.historyDate}>{format(new Date(snapshot.date), 'MMM dd')}</Text>
-              <View style={styles.historyStats}>
-                <Text style={styles.historyValue}>{formatEnergy(snapshot.energyConsumed)}</Text>
-                <Text style={styles.historyValue}>{formatCO2(snapshot.co2Avoided)}</Text>
+            <View key={snapshot.id} style={s.historyItem}>
+              <Text style={s.historyDate}>{format(new Date(snapshot.date), 'MMM dd')}</Text>
+              <View style={s.historyStats}>
+                <Text style={s.historyValue}>{formatEnergy(snapshot.energyConsumed)}</Text>
+                <Text style={s.historyValue}>{formatCO2(snapshot.co2Avoided)}</Text>
               </View>
-              <Text style={styles.historyStreak}>🔥 {snapshot.streakDays}</Text>
+              <Text style={s.historyStreak}>🔥 {snapshot.streakDays}</Text>
             </View>
           ))}
         </View>
@@ -320,321 +304,320 @@ const ImpactVisualizerScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.background,
   },
   header: {
-    backgroundColor: '#00BCD4',
-    padding: 20,
-    paddingTop: 40,
+    paddingTop: 54,
+    paddingBottom: 28,
+    paddingHorizontal: Spacing.page,
+    alignItems: 'center',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 5,
+  headerLabel: {
+    ...Typography.overline,
+    color: Colors.primary,
+    marginBottom: 4,
   },
-  subtitle: {
-    fontSize: 14,
+  headerTitle: {
+    ...Typography.displaySmall,
     color: '#fff',
-    opacity: 0.9,
   },
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 40,
+    backgroundColor: Colors.background,
   },
   emptyIcon: {
     fontSize: 80,
-    marginBottom: 20,
+    marginBottom: Spacing.page,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 10,
+    ...Typography.h2,
+    color: Colors.text,
+    marginBottom: Spacing.sm,
   },
   emptyText: {
-    fontSize: 14,
-    color: '#666',
+    ...Typography.bodyMedium,
+    color: Colors.textSecondary,
     textAlign: 'center',
   },
   snapshotContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.card,
   },
   impactSection: {
-    padding: 20,
+    padding: Spacing.page,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
+    ...Typography.h3,
+    color: Colors.text,
+    marginBottom: Spacing.lg,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: Spacing.lg,
   },
   impactCard: {
-    backgroundColor: '#E0F7FA',
-    borderRadius: 12,
-    padding: 20,
+    backgroundColor: Colors.primarySoft,
+    borderRadius: Radius.card,
+    padding: Spacing.page,
   },
   impactRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 20,
+    marginBottom: Spacing.page,
   },
   impactItem: {
     alignItems: 'center',
   },
   impactIcon: {
     fontSize: 32,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   impactValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#00838F',
-    marginBottom: 4,
+    ...Typography.stat,
+    color: Colors.primaryDeep,
+    marginBottom: Spacing.xs,
   },
   impactLabel: {
-    fontSize: 12,
-    color: '#666',
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
   },
   streakBox: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 8,
+    backgroundColor: Colors.card,
+    padding: Spacing.md,
+    borderRadius: Radius.sm,
   },
   streakIcon: {
     fontSize: 24,
-    marginRight: 8,
+    marginRight: Spacing.sm,
   },
   streakText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FF6F00',
+    ...Typography.label,
+    color: Colors.warning,
   },
   videoSection: {
-    padding: 20,
+    padding: Spacing.page,
     paddingTop: 0,
   },
   videoCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 15,
-    elevation: 2,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.card,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+    ...Shadows.md,
   },
   videoTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 10,
+    ...Typography.h3,
+    color: Colors.text,
+    marginBottom: Spacing.sm,
   },
   treeAnimation: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    padding: 10,
+    padding: Spacing.sm,
   },
   treeEmoji: {
     fontSize: 28,
-    margin: 4,
+    margin: Spacing.xs,
   },
   bulbAnimation: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    padding: 10,
+    padding: Spacing.sm,
   },
   bulbEmoji: {
     fontSize: 28,
-    margin: 4,
+    margin: Spacing.xs,
   },
   videoDesc: {
-    fontSize: 12,
-    color: '#666',
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
     textAlign: 'center',
-    marginTop: 10,
+    marginTop: Spacing.sm,
   },
   snapshotSection: {
-    padding: 20,
+    padding: Spacing.page,
   },
   shareButton: {
-    backgroundColor: '#00BCD4',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 16,
+    borderRadius: Radius.pill,
+    overflow: 'hidden',
+  },
+  shareButtonGradient: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.pill,
   },
   shareButtonText: {
+    ...Typography.label,
     color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
   },
   snapshotCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    elevation: 3,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.card,
+    padding: Spacing.page,
+    ...Shadows.md,
   },
   snapshotDate: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 15,
+    ...Typography.bodyMedium,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.lg,
     textAlign: 'center',
   },
   snapshotStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 15,
+    marginBottom: Spacing.lg,
   },
   snapshotStat: {
     alignItems: 'center',
   },
   snapshotLabel: {
-    fontSize: 11,
-    color: '#999',
-    marginBottom: 4,
+    ...Typography.labelSmall,
+    color: Colors.textMuted,
+    marginBottom: Spacing.xs,
   },
   snapshotValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#00BCD4',
+    ...Typography.statSmall,
+    color: Colors.primary,
   },
   topAction: {
-    fontSize: 13,
-    color: '#333',
+    ...Typography.label,
+    color: Colors.text,
     textAlign: 'center',
-    paddingTop: 15,
+    paddingTop: Spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
+    borderTopColor: Colors.divider,
   },
   generateButton: {
-    backgroundColor: '#00BCD4',
-    padding: 15,
-    borderRadius: 12,
+    borderRadius: Radius.card,
+    overflow: 'hidden',
+  },
+  generateButtonGradient: {
+    padding: Spacing.lg,
+    borderRadius: Radius.card,
     alignItems: 'center',
   },
   generateButtonText: {
+    ...Typography.h3,
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
   timerSection: {
-    padding: 20,
+    padding: Spacing.page,
   },
   addTimerButton: {
-    backgroundColor: '#00BCD4',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 16,
+    borderRadius: Radius.pill,
+    overflow: 'hidden',
+  },
+  addTimerGradient: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.pill,
   },
   addTimerText: {
+    ...Typography.label,
     color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
   },
   noTimers: {
-    padding: 20,
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    padding: Spacing.page,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.card,
     alignItems: 'center',
+    ...Shadows.sm,
   },
   noTimersText: {
-    color: '#999',
-    fontSize: 14,
+    ...Typography.bodyMedium,
+    color: Colors.textMuted,
   },
   timerCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 15,
-    elevation: 3,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.card,
+    padding: Spacing.page,
+    marginBottom: Spacing.lg,
+    ...Shadows.md,
   },
   timerTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
+    ...Typography.h3,
+    color: Colors.text,
+    marginBottom: Spacing.lg,
     textAlign: 'center',
   },
   timerDisplay: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: Spacing.lg,
   },
   timeBox: {
-    backgroundColor: '#E0F7FA',
-    borderRadius: 8,
-    padding: 15,
+    backgroundColor: Colors.primarySoft,
+    borderRadius: Radius.sm,
+    padding: Spacing.lg,
     minWidth: 80,
     alignItems: 'center',
   },
   timeValue: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#00838F',
+    ...Typography.displayMedium,
+    color: Colors.primaryDeep,
   },
   timeLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+    marginTop: Spacing.xs,
   },
   timeSeparator: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#00838F',
-    marginHorizontal: 10,
+    ...Typography.displayMedium,
+    color: Colors.primaryDeep,
+    marginHorizontal: Spacing.sm,
   },
   timerGoal: {
-    fontSize: 14,
-    color: '#666',
+    ...Typography.bodyMedium,
+    color: Colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: Spacing.sm,
   },
   timerProgress: {
     height: 8,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 4,
+    backgroundColor: Colors.border,
+    borderRadius: Spacing.xs,
     overflow: 'hidden',
-    marginBottom: 10,
+    marginBottom: Spacing.sm,
   },
   timerProgressFill: {
     height: '100%',
-    backgroundColor: '#00BCD4',
+    backgroundColor: Colors.primary,
+    borderRadius: Spacing.xs,
   },
   timerHint: {
-    fontSize: 12,
-    color: '#999',
+    ...Typography.bodySmall,
+    color: Colors.textMuted,
     textAlign: 'center',
     fontStyle: 'italic',
   },
   historySection: {
-    padding: 20,
+    padding: Spacing.page,
   },
   historyItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 10,
+    backgroundColor: Colors.card,
+    padding: Spacing.lg,
+    borderRadius: Radius.sm,
+    marginBottom: Spacing.sm,
+    ...Shadows.sm,
   },
   historyDate: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#333',
+    ...Typography.label,
+    color: Colors.text,
     width: 60,
   },
   historyStats: {
@@ -643,8 +626,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
   },
   historyValue: {
-    fontSize: 12,
-    color: '#666',
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
   },
   historyStreak: {
     fontSize: 14,

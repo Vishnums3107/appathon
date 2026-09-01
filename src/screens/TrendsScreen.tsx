@@ -1,461 +1,194 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Dimensions,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, StatusBar } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { useEnergy } from '../context/EnergyContext';
 import { LineChart } from 'react-native-chart-kit';
 import { generateTrendData, formatEnergy, formatCost } from '../utils/energy';
-import { subDays, format } from 'date-fns';
+import { format } from 'date-fns';
+import { Colors, Typography, Spacing, Radius, Shadows } from '../theme';
 
-const screenWidth = Dimensions.get('window').width;
-
+const W = Dimensions.get('window').width;
 type Period = 'daily' | 'weekly' | 'monthly';
 
 const TrendsScreen = () => {
   const { usageRecords, dashboardData, settings } = useEnergy();
-  const [selectedPeriod, setSelectedPeriod] = useState<Period>('weekly');
+  const [period, setPeriod] = useState<Period>('weekly');
 
   if (!dashboardData) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyIcon}>📈</Text>
-        <Text style={styles.emptyTitle}>No Trend Data</Text>
-        <Text style={styles.emptyText}>
-          Add appliances and track usage to see trends
-        </Text>
+      <View style={s.emptyWrap}>
+        <StatusBar barStyle="dark-content" />
+        <Text style={s.emptyIcon}>📈</Text>
+        <Text style={s.emptyTitle}>No Trend Data</Text>
+        <Text style={s.emptyBody}>Add appliances and track usage to see trends</Text>
       </View>
     );
   }
 
-  // Generate trend data based on selected period
-  const getDays = () => {
-    switch (selectedPeriod) {
-      case 'daily':
-        return 7;
-      case 'weekly':
-        return 28;
-      case 'monthly':
-        return 90;
-    }
-  };
+  const days = period === 'daily' ? 7 : period === 'weekly' ? 28 : 90;
+  const trend = generateTrendData(usageRecords, days, settings.electricityRate);
+  const hasRecords = usageRecords.length > 0;
 
-  const days = getDays();
-  const trendData = generateTrendData(usageRecords, days, settings.electricityRate);
-
-  // Prepare chart data
   const chartData = {
-    labels: trendData.map((d, i) => {
-      if (selectedPeriod === 'daily') {
-        return format(new Date(d.date), 'MMM dd');
-      } else if (selectedPeriod === 'weekly') {
-        return i % 7 === 0 ? format(new Date(d.date), 'MMM dd') : '';
-      } else {
-        return i % 30 === 0 ? format(new Date(d.date), 'MMM') : '';
-      }
+    labels: trend.map((d, i) => {
+      if (period === 'daily') return format(new Date(d.date), 'dd');
+      if (period === 'weekly') return i % 7 === 0 ? format(new Date(d.date), 'MMM dd') : '';
+      return i % 30 === 0 ? format(new Date(d.date), 'MMM') : '';
     }),
-    datasets: [
-      {
-        data: trendData.map(d => d.consumption || 0.01), // Avoid zero for chart
-      },
-    ],
+    datasets: [{ data: trend.map(d => d.consumption || 0.01) }],
   };
 
-  // Calculate averages
-  const avgConsumption = trendData.reduce((sum, d) => sum + d.consumption, 0) / trendData.length;
-  const avgCost = trendData.reduce((sum, d) => sum + d.cost, 0) / trendData.length;
-  const avgCO2 = trendData.reduce((sum, d) => sum + d.co2, 0) / trendData.length;
-
-  // Calculate comparison with previous period
-  const currentPeriodData = trendData.slice(-Math.floor(days / 2));
-  const previousPeriodData = trendData.slice(0, Math.floor(days / 2));
-  
-  const currentAvg = currentPeriodData.reduce((sum, d) => sum + d.consumption, 0) / currentPeriodData.length;
-  const previousAvg = previousPeriodData.reduce((sum, d) => sum + d.consumption, 0) / previousPeriodData.length;
-  
-  const percentageChange = previousAvg > 0 ? ((currentAvg - previousAvg) / previousAvg) * 100 : 0;
-  const isImprovement = currentAvg < previousAvg;
-
-  const { topConsumers } = dashboardData;
+  const avg = trend.reduce((s, d) => s + d.consumption, 0) / trend.length;
+  const avgCost = trend.reduce((s, d) => s + d.cost, 0) / trend.length;
+  const avgCO2 = trend.reduce((s, d) => s + d.co2, 0) / trend.length;
+  const cur = trend.slice(-Math.floor(days / 2));
+  const prev = trend.slice(0, Math.floor(days / 2));
+  const curAvg = cur.reduce((s, d) => s + d.consumption, 0) / cur.length;
+  const prevAvg = prev.reduce((s, d) => s + d.consumption, 0) / prev.length;
+  const pctChange = prevAvg > 0 ? ((curAvg - prevAvg) / prevAvg) * 100 : 0;
+  const improved = curAvg < prevAvg;
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>📈 Energy Trends</Text>
-        <Text style={styles.subtitle}>Track your consumption patterns</Text>
-      </View>
+    <ScrollView style={s.screen} showsVerticalScrollIndicator={false}>
+      <StatusBar barStyle="light-content" backgroundColor={Colors.dark} />
+      <LinearGradient colors={['#0B1120', '#162032']} style={s.header}>
+        <Text style={s.headerLabel}>ENERGY TRENDS</Text>
+        <Text style={s.headerTitle}>Usage Patterns</Text>
+      </LinearGradient>
 
-      {/* Period Selector */}
-      <View style={styles.periodSelector}>
-        <TouchableOpacity
-          style={[styles.periodButton, selectedPeriod === 'daily' && styles.periodButtonActive]}
-          onPress={() => setSelectedPeriod('daily')}
-        >
-          <Text style={[styles.periodButtonText, selectedPeriod === 'daily' && styles.periodButtonTextActive]}>
-            7 Days
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.periodButton, selectedPeriod === 'weekly' && styles.periodButtonActive]}
-          onPress={() => setSelectedPeriod('weekly')}
-        >
-          <Text style={[styles.periodButtonText, selectedPeriod === 'weekly' && styles.periodButtonTextActive]}>
-            4 Weeks
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.periodButton, selectedPeriod === 'monthly' && styles.periodButtonActive]}
-          onPress={() => setSelectedPeriod('monthly')}
-        >
-          <Text style={[styles.periodButtonText, selectedPeriod === 'monthly' && styles.periodButtonTextActive]}>
-            3 Months
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Comparison Card */}
-      <View style={styles.section}>
-        <View style={[styles.comparisonCard, isImprovement ? styles.improvementCard : styles.increaseCard]}>
-          <Text style={styles.comparisonIcon}>{isImprovement ? '✅' : '⚠️'}</Text>
-          <Text style={styles.comparisonTitle}>
-            {isImprovement ? 'Great Progress!' : 'Usage Increased'}
-          </Text>
-          <Text style={styles.comparisonValue}>
-            {Math.abs(percentageChange).toFixed(1)}% {isImprovement ? 'decrease' : 'increase'}
-          </Text>
-          <Text style={styles.comparisonSubtext}>
-            Compared to previous period
-          </Text>
-        </View>
-      </View>
-
-      {/* Trend Chart */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Consumption Trend</Text>
-        <View style={styles.chartContainer}>
-          <LineChart
-            data={chartData}
-            width={screenWidth - 40}
-            height={220}
-            chartConfig={{
-              backgroundColor: '#fff',
-              backgroundGradientFrom: '#fff',
-              backgroundGradientTo: '#fff',
-              decimalPlaces: 1,
-              color: (opacity = 1) => `rgba(33, 150, 243, ${opacity})`,
-              labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-              style: {
-                borderRadius: 16,
-              },
-              propsForDots: {
-                r: '4',
-                strokeWidth: '2',
-                stroke: '#2196F3',
-              },
-            }}
-            bezier
-            style={styles.chart}
-          />
-        </View>
-      </View>
-
-      {/* Averages */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Period Averages</Text>
-        <View style={styles.averagesContainer}>
-          <View style={styles.averageCard}>
-            <Text style={styles.averageIcon}>⚡</Text>
-            <Text style={styles.averageLabel}>Avg Energy/Day</Text>
-            <Text style={styles.averageValue}>{formatEnergy(avgConsumption)}</Text>
-          </View>
-          <View style={styles.averageCard}>
-            <Text style={styles.averageIcon}>💰</Text>
-            <Text style={styles.averageLabel}>Avg Cost/Day</Text>
-            <Text style={styles.averageValue}>{formatCost(avgCost, settings.currency)}</Text>
-          </View>
-          <View style={styles.averageCard}>
-            <Text style={styles.averageIcon}>🌍</Text>
-            <Text style={styles.averageLabel}>Avg CO₂/Day</Text>
-            <Text style={styles.averageValue}>{avgCO2.toFixed(2)} kg</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Top 3 Consumers */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🔥 Top 3 Energy Consumers</Text>
-        {topConsumers.slice(0, 3).map((consumer, index) => (
-          <View key={consumer.applianceId} style={styles.topConsumerCard}>
-            <View style={styles.medal}>
-              <Text style={styles.medalText}>
-                {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
-              </Text>
-            </View>
-            <View style={styles.topConsumerInfo}>
-              <Text style={styles.topConsumerName}>{consumer.applianceName}</Text>
-              <Text style={styles.topConsumerValue}>
-                {formatEnergy(consumer.monthlyConsumption)}/month
-              </Text>
-            </View>
-            <View style={styles.topConsumerPercent}>
-              <Text style={styles.percentText}>{consumer.percentage.toFixed(0)}%</Text>
-            </View>
-          </View>
+      {/* Period selector */}
+      <View style={s.pillRow}>
+        {([['daily', '7D'], ['weekly', '4W'], ['monthly', '3M']] as const).map(([k, l]) => (
+          <TouchableOpacity key={k} style={[s.pill, period === k && s.pillActive]} onPress={() => setPeriod(k as Period)}>
+            <Text style={[s.pillTxt, period === k && s.pillTxtActive]}>{l}</Text>
+          </TouchableOpacity>
         ))}
       </View>
 
-      {/* Insights */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>💡 Insights</Text>
-        <View style={styles.insightCard}>
-          <Text style={styles.insightText}>
-            {isImprovement
-              ? `You're doing great! You've reduced your energy consumption by ${Math.abs(percentageChange).toFixed(1)}% compared to the previous period.`
-              : `Your energy usage has increased by ${percentageChange.toFixed(1)}%. Check your top consumers and consider our energy-saving tips.`}
-          </Text>
-          {!isImprovement && (
-            <Text style={styles.insightTip}>
-              💡 Tip: Small changes like turning off unused appliances can make a big difference!
-            </Text>
-          )}
+      {!hasRecords ? (
+        <View style={s.noDataCard}>
+          <Text style={s.noDataIcon}>📊</Text>
+          <Text style={s.noDataTitle}>No Usage Data Yet</Text>
+          <Text style={s.noDataBody}>Start logging daily energy usage to see trends here.</Text>
         </View>
+      ) : (
+        <>
+          {/* Comparison */}
+          <View style={s.pad}>
+            <View style={[s.compareCard, improved ? s.compareGood : s.compareBad]}>
+              <Text style={s.compareNum}>{Math.abs(pctChange).toFixed(1)}%</Text>
+              <Text style={s.compareLbl}>{improved ? 'decrease' : 'increase'} vs previous period</Text>
+            </View>
+          </View>
+
+          {/* Chart */}
+          <View style={s.pad}>
+            <View style={s.chartCard}>
+              <LineChart
+                data={chartData} width={W - 60} height={200}
+                chartConfig={{
+                  backgroundColor: Colors.card, backgroundGradientFrom: Colors.card,
+                  backgroundGradientTo: Colors.card, decimalPlaces: 1,
+                  color: (o = 1) => `rgba(0, 230, 118, ${o})`,
+                  labelColor: () => Colors.textMuted,
+                  propsForDots: { r: '3', strokeWidth: '1', stroke: Colors.primary },
+                  propsForBackgroundLines: { strokeDasharray: '', stroke: Colors.borderLight },
+                }}
+                bezier style={{ borderRadius: Radius.md }}
+              />
+            </View>
+          </View>
+
+          {/* Averages */}
+          <View style={s.avgRow}>
+            {[
+              { l: 'Energy/day', v: formatEnergy(avg) },
+              { l: 'Cost/day', v: formatCost(avgCost, settings.currency) },
+              { l: 'CO₂/day', v: `${avgCO2.toFixed(1)} kg` },
+            ].map(a => (
+              <View key={a.l} style={s.avgCard}>
+                <Text style={s.avgVal}>{a.v}</Text>
+                <Text style={s.avgLbl}>{a.l}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={s.pad}>
+            <View style={s.insightCard}>
+              <Text style={s.insightTitle}>What to do next</Text>
+              <Text style={s.insightText}>
+                {prevAvg === 0
+                  ? 'Keep logging daily usage to unlock a period-over-period comparison.'
+                  : improved
+                    ? `Your recent average is ${Math.abs(pctChange).toFixed(1)}% lower. Keep the habits that created this reduction.`
+                    : `Your recent average is ${Math.abs(pctChange).toFixed(1)}% higher. Review your top consumer and try a focused usage reduction.`}
+              </Text>
+            </View>
+          </View>
+        </>
+      )}
+
+      {/* Top consumers */}
+      <View style={[s.pad, s.topConsumersSection]}>
+        <Text style={s.sectionTitle}>Top Consumers</Text>
+        {dashboardData.topConsumers.slice(0, 3).map((c, i) => (
+          <View key={c.applianceId} style={s.consumerRow}>
+            <Text style={s.medal}>{['🥇', '🥈', '🥉'][i]}</Text>
+            <View style={s.consumerInfo}>
+              <Text style={s.consumerName}>{c.applianceName}</Text>
+              <Text style={s.consumerVal}>{formatEnergy(c.monthlyConsumption)}/mo</Text>
+            </View>
+            <View style={s.pctBadge}>
+              <Text style={s.pctTxt}>{c.percentage.toFixed(0)}%</Text>
+            </View>
+          </View>
+        ))}
       </View>
     </ScrollView>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-    backgroundColor: '#f5f5f5',
-  },
-  emptyIcon: {
-    fontSize: 80,
-    marginBottom: 20,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 10,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-  header: {
-    padding: 20,
-    backgroundColor: '#2196F3',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#fff',
-    opacity: 0.9,
-  },
-  periodSelector: {
-    flexDirection: 'row',
-    padding: 15,
-    gap: 10,
-  },
-  periodButton: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
-  },
-  periodButtonActive: {
-    backgroundColor: '#2196F3',
-    borderColor: '#2196F3',
-  },
-  periodButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-  },
-  periodButtonTextActive: {
-    color: '#fff',
-  },
-  section: {
-    padding: 15,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
-  },
-  comparisonCard: {
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  improvementCard: {
-    backgroundColor: '#E8F5E9',
-  },
-  increaseCard: {
-    backgroundColor: '#FFF3E0',
-  },
-  comparisonIcon: {
-    fontSize: 48,
-    marginBottom: 10,
-  },
-  comparisonTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  comparisonValue: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#2196F3',
-    marginBottom: 5,
-  },
-  comparisonSubtext: {
-    fontSize: 14,
-    color: '#666',
-  },
-  chartContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 10,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  chart: {
-    marginVertical: 8,
-    borderRadius: 16,
-  },
-  averagesContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  averageCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 15,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  averageIcon: {
-    fontSize: 28,
-    marginBottom: 8,
-  },
-  averageLabel: {
-    fontSize: 11,
-    color: '#666',
-    marginBottom: 5,
-    textAlign: 'center',
-  },
-  averageValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#333',
-    textAlign: 'center',
-  },
-  topConsumerCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  medal: {
-    width: 50,
-    height: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  medalText: {
-    fontSize: 32,
-  },
-  topConsumerInfo: {
-    flex: 1,
-    marginLeft: 10,
-  },
-  topConsumerName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  topConsumerValue: {
-    fontSize: 14,
-    color: '#666',
-  },
-  topConsumerPercent: {
-    backgroundColor: '#E3F2FD',
-    borderRadius: 8,
-    padding: 8,
-  },
-  percentText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#2196F3',
-  },
-  insightCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  insightText: {
-    fontSize: 15,
-    color: '#333',
-    lineHeight: 22,
-    marginBottom: 10,
-  },
-  insightTip: {
-    fontSize: 14,
-    color: '#FF9800',
-    fontStyle: 'italic',
-  },
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: Colors.background },
+  emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background, padding: 40 },
+  emptyIcon: { fontSize: 56, marginBottom: 16 },
+  emptyTitle: { ...Typography.h1, color: Colors.text, marginBottom: 8 },
+  emptyBody: { ...Typography.bodyMedium, color: Colors.textSecondary, textAlign: 'center' },
+  header: { paddingTop: 54, paddingBottom: 28, paddingHorizontal: Spacing.page, alignItems: 'center' },
+  headerLabel: { ...Typography.overline, color: Colors.primary, marginBottom: 4 },
+  headerTitle: { ...Typography.displaySmall, color: '#fff' },
+  pillRow: { flexDirection: 'row', paddingHorizontal: Spacing.page, marginTop: 16, gap: 8 },
+  pill: { flex: 1, paddingVertical: 10, borderRadius: Radius.pill, backgroundColor: Colors.card, alignItems: 'center', ...Shadows.sm },
+  pillActive: { backgroundColor: Colors.primary },
+  pillTxt: { ...Typography.label, color: Colors.textSecondary },
+  pillTxtActive: { color: Colors.dark },
+  pad: { paddingHorizontal: Spacing.page, marginTop: 16 },
+  topConsumersSection: { marginBottom: 30 },
+  noDataCard: { margin: Spacing.page, backgroundColor: Colors.card, borderRadius: Radius.card, padding: 32, alignItems: 'center', ...Shadows.md },
+  noDataIcon: { fontSize: 40, marginBottom: 10 },
+  noDataTitle: { ...Typography.h3, color: Colors.text, marginBottom: 6 },
+  noDataBody: { ...Typography.bodySmall, color: Colors.textSecondary, textAlign: 'center' },
+  compareCard: { borderRadius: Radius.card, padding: 20, alignItems: 'center', ...Shadows.sm },
+  compareGood: { backgroundColor: '#ECFDF5' },
+  compareBad: { backgroundColor: '#FEF2F2' },
+  compareNum: { ...Typography.displayMedium, color: Colors.primary },
+  compareLbl: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 4 },
+  chartCard: { backgroundColor: Colors.card, borderRadius: Radius.card, padding: Spacing.md, alignItems: 'center', ...Shadows.md },
+  avgRow: { flexDirection: 'row', gap: 10, paddingHorizontal: Spacing.page, marginTop: 16 },
+  avgCard: { flex: 1, backgroundColor: Colors.card, borderRadius: Radius.card, padding: 16, alignItems: 'center', ...Shadows.sm },
+  avgVal: { ...Typography.statSmall, color: Colors.primary, textAlign: 'center' },
+  avgLbl: { ...Typography.labelSmall, color: Colors.textMuted, marginTop: 4 },
+  insightCard: { backgroundColor: Colors.primarySoft, borderRadius: Radius.card, padding: 16 },
+  insightTitle: { ...Typography.h3, color: Colors.primaryDark, marginBottom: 5 },
+  insightText: { ...Typography.bodySmall, color: Colors.textSecondary, lineHeight: 18 },
+  sectionTitle: { ...Typography.h2, color: Colors.text, marginBottom: 14 },
+  consumerRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.card, borderRadius: Radius.md, padding: 14, marginBottom: 8, ...Shadows.sm },
+  medal: { fontSize: 24, marginRight: 12 },
+  consumerInfo: { flex: 1 },
+  consumerName: { ...Typography.label, color: Colors.text },
+  consumerVal: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 1 },
+  pctBadge: { backgroundColor: Colors.primarySoft, borderRadius: Radius.sm, paddingHorizontal: 10, paddingVertical: 4 },
+  pctTxt: { ...Typography.label, color: Colors.primaryDark },
 });
 
 export default TrendsScreen;

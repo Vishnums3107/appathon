@@ -3,7 +3,7 @@
  * Shows global and friends rankings with achievements
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,10 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
+  StatusBar,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import { Colors, Typography, Spacing, Radius, Shadows } from '../theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface LeaderboardEntry {
@@ -37,11 +40,7 @@ const LeaderboardScreen: React.FC = () => {
   const [userEntry, setUserEntry] = useState<LeaderboardEntry | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadLeaderboard();
-  }, [activeTab]);
-
-  const loadLeaderboard = async () => {
+  const loadLeaderboard = useCallback(async () => {
     try {
       // Load or generate leaderboard data
       const stored = await AsyncStorage.getItem('leaderboard_data');
@@ -75,7 +74,11 @@ const LeaderboardScreen: React.FC = () => {
     } catch (error) {
       console.error('Failed to load leaderboard:', error);
     }
-  };
+  }, [activeTab]);
+
+  useEffect(() => {
+    loadLeaderboard();
+  }, [loadLeaderboard]);
 
   const generateSampleLeaderboard = (): LeaderboardEntry[] => {
     const names = [
@@ -88,7 +91,7 @@ const LeaderboardScreen: React.FC = () => {
       id: `user-${index}`,
       userId: index === 0 ? 'current_user' : `user-${index}`,
       username: name,
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`,
+      avatar: `https://api.dicebear.com/7.x/avataaars/png?seed=${name}`,
       totalSavings: Math.max(100, 2000 - index * 100 - Math.random() * 50),
       co2Offset: Math.max(50, 1000 - index * 50 - Math.random() * 25),
       rank: index + 1,
@@ -96,7 +99,7 @@ const LeaderboardScreen: React.FC = () => {
       monthlyRank: Math.floor(Math.random() * 100) + 1,
       streak: Math.floor(Math.random() * 90) + 1,
       achievements: Math.floor(Math.random() * 20) + 1,
-      joinedDate: new Date(2024, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28)).toISOString(),
+      joinedDate: new Date(new Date().getFullYear(), Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1).toISOString(),
       isFriend: index > 0 && Math.random() > 0.6,
     }));
   };
@@ -118,7 +121,7 @@ const LeaderboardScreen: React.FC = () => {
     if (rank === 1) return '#FFD700';
     if (rank === 2) return '#C0C0C0';
     if (rank === 3) return '#CD7F32';
-    return '#757575';
+    return Colors.textSecondary;
   };
 
   const renderLeaderboardEntry = (entry: LeaderboardEntry, index: number) => {
@@ -130,114 +133,119 @@ const LeaderboardScreen: React.FC = () => {
       <View
         key={entry.id}
         style={[
-          styles.entryCard,
-          isCurrentUser && styles.currentUserCard,
-          index < 3 && styles.topThreeCard,
+          s.entryCard,
+          isCurrentUser && s.currentUserCard,
+          index < 3 && s.topThreeCard,
         ]}
       >
-        <View style={styles.rankContainer}>
-          <Text style={[styles.rankText, { color: getRankColor(currentRank) }]}>
+        <View style={s.rankContainer}>
+          <Text style={[s.rankText, { color: getRankColor(currentRank) }]}>
             {getRankEmoji(currentRank)}
           </Text>
         </View>
 
-        <Image source={{ uri: entry.avatar }} style={styles.avatar} />
+        <Image source={{ uri: entry.avatar }} style={s.avatar} />
 
-        <View style={styles.infoContainer}>
-          <View style={styles.nameRow}>
-            <Text style={[styles.username, isCurrentUser && styles.currentUserText]}>
+        <View style={s.infoContainer}>
+          <View style={s.nameRow}>
+            <Text style={[s.username, isCurrentUser && s.currentUserText]}>
               {entry.username}
               {isCurrentUser && ' (You)'}
             </Text>
-            {entry.isFriend && <Text style={styles.friendBadge}>👥 Friend</Text>}
+            {entry.isFriend && <Text style={s.friendBadge}>👥 Friend</Text>}
           </View>
 
-          <View style={styles.statsRow}>
-            <View style={styles.stat}>
-              <Text style={styles.statValue}>{entry.totalSavings.toFixed(0)}</Text>
-              <Text style={styles.statLabel}>kWh Saved</Text>
+          <View style={s.statsRow}>
+            <View style={s.stat}>
+              <Text style={s.statValue}>{entry.totalSavings.toFixed(0)}</Text>
+              <Text style={s.statLabel}>kWh Saved</Text>
             </View>
-            <View style={styles.stat}>
-              <Text style={styles.statValue}>{entry.co2Offset.toFixed(0)}</Text>
-              <Text style={styles.statLabel}>kg CO₂</Text>
+            <View style={s.stat}>
+              <Text style={s.statValue}>{entry.co2Offset.toFixed(0)}</Text>
+              <Text style={s.statLabel}>kg CO₂</Text>
             </View>
-            <View style={styles.stat}>
-              <Text style={styles.statValue}>{entry.streak}</Text>
-              <Text style={styles.statLabel}>🔥 Streak</Text>
+            <View style={s.stat}>
+              <Text style={s.statValue}>{entry.streak}</Text>
+              <Text style={s.statLabel}>🔥 Streak</Text>
             </View>
           </View>
         </View>
 
-        <View style={styles.achievementsContainer}>
-          <Text style={styles.achievementCount}>🏆 {entry.achievements}</Text>
+        <View style={s.achievementsContainer}>
+          <Text style={s.achievementCount}>🏆 {entry.achievements}</Text>
         </View>
       </View>
     );
   };
 
   return (
-    <View style={styles.container}>
+    <View style={s.container}>
+      <StatusBar barStyle="light-content" backgroundColor={Colors.dark} />
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>🏆 Leaderboard</Text>
-        <Text style={styles.headerSubtitle}>Compete with others to save energy!</Text>
+      <LinearGradient colors={['#0B1120', '#162032']} style={s.header}>
+        <Text style={s.headerLabel}>LOCAL PREVIEW</Text>
+        <Text style={s.headerTitle}>Leaderboard Preview</Text>
+      </LinearGradient>
+
+      <View style={s.previewNotice}>
+        <Text style={s.previewNoticeText}>Sample standings are stored on this device. Connect a leaderboard service to compete with real people.</Text>
       </View>
 
       {/* Current User Card */}
       {userEntry && (
-        <View style={styles.currentUserBanner}>
-          <View style={styles.currentUserInfo}>
-            <Image source={{ uri: userEntry.avatar }} style={styles.bannerAvatar} />
+        <View style={s.currentUserBanner}>
+          <View style={s.currentUserInfo}>
+            <Image source={{ uri: userEntry.avatar }} style={s.bannerAvatar} />
             <View>
-              <Text style={styles.bannerName}>Your Ranking</Text>
-              <Text style={styles.bannerRank}>
+              <Text style={s.bannerName}>Your sample position</Text>
+              <Text style={s.bannerRank}>
                 {getRankEmoji(activeTab === 'weekly' ? userEntry.weeklyRank :
                               activeTab === 'monthly' ? userEntry.monthlyRank : userEntry.rank)}
-                {' '}in {activeTab === 'all' ? 'Global' : activeTab}
+                {' '}in this preview
               </Text>
             </View>
           </View>
-          <View style={styles.bannerStats}>
-            <Text style={styles.bannerStatText}>{userEntry.totalSavings.toFixed(0)} kWh</Text>
-            <Text style={styles.bannerStatLabel}>Total Savings</Text>
+          <View style={s.bannerStats}>
+            <Text style={s.bannerStatText}>{userEntry.totalSavings.toFixed(0)} kWh</Text>
+            <Text style={s.bannerStatLabel}>Total Savings</Text>
           </View>
         </View>
       )}
 
       {/* Tab Selector */}
-      <View style={styles.tabContainer}>
+      <View style={s.tabContainer}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'all' && styles.activeTab]}
+          style={[s.tab, activeTab === 'all' && s.activeTab]}
           onPress={() => setActiveTab('all')}
         >
-          <Text style={[styles.tabText, activeTab === 'all' && styles.activeTabText]}>
+          <Text style={[s.tabText, activeTab === 'all' && s.activeTabText]}>
             🌍 Global
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'friends' && styles.activeTab]}
+          style={[s.tab, activeTab === 'friends' && s.activeTab]}
           onPress={() => setActiveTab('friends')}
         >
-          <Text style={[styles.tabText, activeTab === 'friends' && styles.activeTabText]}>
+          <Text style={[s.tabText, activeTab === 'friends' && s.activeTabText]}>
             👥 Friends
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'weekly' && styles.activeTab]}
+          style={[s.tab, activeTab === 'weekly' && s.activeTab]}
           onPress={() => setActiveTab('weekly')}
         >
-          <Text style={[styles.tabText, activeTab === 'weekly' && styles.activeTabText]}>
+          <Text style={[s.tabText, activeTab === 'weekly' && s.activeTabText]}>
             📅 Weekly
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'monthly' && styles.activeTab]}
+          style={[s.tab, activeTab === 'monthly' && s.activeTab]}
           onPress={() => setActiveTab('monthly')}
         >
-          <Text style={[styles.tabText, activeTab === 'monthly' && styles.activeTabText]}>
+          <Text style={[s.tabText, activeTab === 'monthly' && s.activeTabText]}>
             📆 Monthly
           </Text>
         </TouchableOpacity>
@@ -245,14 +253,14 @@ const LeaderboardScreen: React.FC = () => {
 
       {/* Leaderboard List */}
       <ScrollView
-        style={styles.scrollView}
+        style={s.scrollView}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {leaderboard.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🏆</Text>
-            <Text style={styles.emptyText}>No rankings available yet</Text>
-            <Text style={styles.emptySubtext}>
+          <View style={s.emptyState}>
+            <Text style={s.emptyIcon}>🏆</Text>
+            <Text style={s.emptyText}>No rankings available yet</Text>
+            <Text style={s.emptySubtext}>
               Start saving energy to climb the leaderboard!
             </Text>
           </View>
@@ -262,8 +270,8 @@ const LeaderboardScreen: React.FC = () => {
       </ScrollView>
 
       {/* Bottom Info */}
-      <View style={styles.bottomInfo}>
-        <Text style={styles.bottomText}>
+      <View style={s.bottomInfo}>
+        <Text style={s.bottomText}>
           💡 Rankings update daily based on energy savings
         </Text>
       </View>
@@ -271,49 +279,47 @@ const LeaderboardScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: Colors.background,
   },
   header: {
-    backgroundColor: '#FF9800',
-    padding: 20,
-    paddingTop: 40,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    paddingTop: 54,
+    paddingBottom: 28,
+    paddingHorizontal: Spacing.page,
+    alignItems: 'center',
+  },
+  headerLabel: {
+    ...Typography.overline,
+    color: Colors.primary,
+    marginBottom: 4,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFF',
-    marginBottom: 5,
+    ...Typography.displaySmall,
+    color: '#fff',
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#FFF',
-    opacity: 0.9,
+  previewNotice: {
+    marginHorizontal: Spacing.page,
+    marginTop: Spacing.page,
+    backgroundColor: Colors.primarySoft,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
   },
+  previewNoticeText: { ...Typography.bodySmall, color: Colors.primaryDark, lineHeight: 18 },
   currentUserBanner: {
-    backgroundColor: '#FFF',
-    margin: 15,
-    padding: 15,
-    borderRadius: 15,
+    backgroundColor: Colors.card,
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.sm,
+    padding: Spacing.lg,
+    borderRadius: Radius.card,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
     borderLeftWidth: 4,
-    borderLeftColor: '#FF9800',
+    borderLeftColor: Colors.primary,
+    ...Shadows.md,
   },
   currentUserInfo: {
     flexDirection: 'row',
@@ -323,87 +329,75 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    marginRight: 12,
-    backgroundColor: '#E0E0E0',
+    marginRight: Spacing.md,
+    backgroundColor: Colors.border,
   },
   bannerName: {
-    fontSize: 14,
-    color: '#757575',
+    ...Typography.bodyMedium,
+    color: Colors.textSecondary,
     marginBottom: 3,
   },
   bannerRank: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+    ...Typography.h3,
+    color: Colors.text,
   },
   bannerStats: {
     alignItems: 'flex-end',
   },
   bannerStatText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FF9800',
+    ...Typography.stat,
+    color: Colors.primary,
   },
   bannerStatLabel: {
-    fontSize: 12,
-    color: '#757575',
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#FFF',
-    marginHorizontal: 15,
-    marginBottom: 10,
-    borderRadius: 12,
-    padding: 5,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    backgroundColor: Colors.card,
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.sm,
+    borderRadius: Radius.md,
+    padding: Spacing.xs,
+    ...Shadows.sm,
   },
   tab: {
     flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderRadius: 8,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: Radius.sm,
     alignItems: 'center',
   },
   activeTab: {
-    backgroundColor: '#FF9800',
+    backgroundColor: Colors.primary,
   },
   tabText: {
-    fontSize: 13,
-    color: '#757575',
-    fontWeight: '600',
+    ...Typography.label,
+    color: Colors.textSecondary,
   },
   activeTabText: {
-    color: '#FFF',
+    color: '#fff',
   },
   scrollView: {
     flex: 1,
   },
   entryCard: {
-    backgroundColor: '#FFF',
-    marginHorizontal: 15,
+    backgroundColor: Colors.card,
+    marginHorizontal: Spacing.lg,
     marginVertical: 6,
-    padding: 12,
-    borderRadius: 12,
+    padding: Spacing.md,
+    borderRadius: Radius.card,
     flexDirection: 'row',
     alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    ...Shadows.sm,
   },
   currentUserCard: {
     borderWidth: 2,
-    borderColor: '#FF9800',
-    backgroundColor: '#FFF8E1',
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primarySoft,
   },
   topThreeCard: {
-    elevation: 4,
-    shadowOpacity: 0.15,
+    ...Shadows.md,
   },
   rankContainer: {
     width: 50,
@@ -411,15 +405,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rankText: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    ...Typography.h2,
   },
   avatar: {
     width: 45,
     height: 45,
     borderRadius: 22.5,
-    marginRight: 12,
-    backgroundColor: '#E0E0E0',
+    marginRight: Spacing.md,
+    backgroundColor: Colors.border,
   },
   infoContainer: {
     flex: 1,
@@ -430,55 +423,53 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   username: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#333',
-    marginRight: 8,
+    ...Typography.h3,
+    color: Colors.text,
+    marginRight: Spacing.sm,
   },
   currentUserText: {
-    color: '#FF9800',
+    color: Colors.primary,
   },
   friendBadge: {
-    fontSize: 10,
-    color: '#4CAF50',
-    backgroundColor: '#E8F5E9',
+    ...Typography.overline,
+    color: Colors.success,
+    backgroundColor: Colors.primarySoft,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
   },
   statsRow: {
     flexDirection: 'row',
   },
   stat: {
-    marginRight: 15,
+    marginRight: Spacing.lg,
   },
   statValue: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#333',
+    ...Typography.label,
+    color: Colors.text,
   },
   statLabel: {
-    fontSize: 10,
-    color: '#757575',
+    ...Typography.overline,
+    color: Colors.textSecondary,
+    letterSpacing: 0.3,
   },
   achievementsContainer: {
     alignItems: 'center',
   },
   achievementCount: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#FF9800',
+    ...Typography.label,
+    color: Colors.primary,
   },
   bottomInfo: {
-    backgroundColor: '#FFF',
-    padding: 12,
+    backgroundColor: Colors.card,
+    padding: Spacing.md,
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
+    borderTopColor: Colors.border,
   },
   bottomText: {
-    fontSize: 12,
-    color: '#757575',
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
     textAlign: 'center',
   },
   emptyState: {
@@ -489,17 +480,16 @@ const styles = StyleSheet.create({
   },
   emptyIcon: {
     fontSize: 64,
-    marginBottom: 15,
+    marginBottom: Spacing.lg,
   },
   emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    ...Typography.h2,
+    color: Colors.text,
+    marginBottom: Spacing.sm,
   },
   emptySubtext: {
-    fontSize: 14,
-    color: '#757575',
+    ...Typography.bodyMedium,
+    color: Colors.textSecondary,
     textAlign: 'center',
     paddingHorizontal: 40,
   },

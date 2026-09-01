@@ -19,3 +19,42 @@ buildscript {
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+subprojects { subproject ->
+    configurations.configureEach {
+        exclude group: "com.android.support"
+    }
+
+    subproject.plugins.withId("com.android.library") {
+        if (subproject.name in ["react-native-push-notification", "react-native-voice_voice"]) {
+            subproject.dependencies.add("implementation", "androidx.appcompat:appcompat:1.7.0")
+            subproject.dependencies.add("implementation", "androidx.core:core:1.13.1")
+        }
+    }
+}
+
+gradle.projectsEvaluated {
+    def reanimatedProject = rootProject.findProject(":react-native-reanimated")
+    def workletsProject = rootProject.findProject(":react-native-worklets")
+
+    if (reanimatedProject != null && workletsProject != null) {
+        def workletsDebugPrefab = workletsProject.tasks.findByName("prefabDebugPackage")
+        def workletsReleasePrefab = workletsProject.tasks.findByName("prefabReleasePackage")
+
+        reanimatedProject.tasks.matching { task ->
+            task.name.startsWith("configureCMakeDebug")
+        }.configureEach { task ->
+            if (workletsDebugPrefab != null) {
+                task.dependsOn(workletsDebugPrefab)
+            }
+        }
+
+        reanimatedProject.tasks.matching { task ->
+            task.name.startsWith("configureCMakeRelWithDebInfo")
+        }.configureEach { task ->
+            if (workletsReleasePrefab != null) {
+                task.dependsOn(workletsReleasePrefab)
+            }
+        }
+    }
+}

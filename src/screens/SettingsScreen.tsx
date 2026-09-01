@@ -1,319 +1,153 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
-  Switch,
-  Alert,
+  View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Switch, Alert, StatusBar,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { useEnergy } from '../context/EnergyContext';
+import { Colors, Typography, Spacing, Radius, Shadows } from '../theme';
 
 const SettingsScreen = () => {
   const { settings, updateSettings } = useEnergy();
-  const [electricityRate, setElectricityRate] = useState(settings.electricityRate.toString());
+  const [rate, setRate] = useState(settings.electricityRate.toString());
   const [currency, setCurrency] = useState(settings.currency);
-  const [weatherLocation, setWeatherLocation] = useState(settings.weatherLocation);
+  const [location, setLocation] = useState(settings.weatherLocation);
+  const [co2Factor, setCo2Factor] = useState(settings.co2Factor.toString());
+
+  useEffect(() => {
+    setRate(settings.electricityRate.toString());
+    setCurrency(settings.currency);
+    setLocation(settings.weatherLocation);
+    setCo2Factor(settings.co2Factor.toString());
+  }, [settings.electricityRate, settings.currency, settings.weatherLocation, settings.co2Factor]);
 
   const handleSave = async () => {
+    const parsedRate = Number.parseFloat(rate);
+    const parsedCo2Factor = Number.parseFloat(co2Factor);
+    if (!Number.isFinite(parsedRate) || parsedRate < 0) {
+      Alert.alert('Check electricity rate', 'Enter a valid rate of zero or more per kWh.');
+      return;
+    }
+    if (!Number.isFinite(parsedCo2Factor) || parsedCo2Factor < 0) {
+      Alert.alert('Check CO2 factor', 'Enter a valid emission factor of zero or more.');
+      return;
+    }
     try {
       await updateSettings({
-        electricityRate: parseFloat(electricityRate),
-        currency,
-        weatherLocation,
+        electricityRate: parsedRate,
+        currency: currency.trim() || '$',
+        weatherLocation: location.trim() || 'New York',
+        co2Factor: parsedCo2Factor,
       });
-      Alert.alert('Success', 'Settings saved successfully!');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to save settings');
-    }
-  };
-
-  const handleToggleNotifications = async (value: boolean) => {
-    await updateSettings({ notificationsEnabled: value });
-  };
-
-  const handleToggleDarkMode = async (value: boolean) => {
-    await updateSettings({ darkMode: value });
+      Alert.alert('Saved', 'Settings updated successfully');
+    } catch { Alert.alert('Error', 'Failed to save'); }
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>⚙️ Settings</Text>
-        <Text style={styles.subtitle}>Customize your energy tracking</Text>
-      </View>
+    <ScrollView style={s.screen} showsVerticalScrollIndicator={false}>
+      <StatusBar barStyle="light-content" backgroundColor={Colors.dark} />
+      <LinearGradient colors={['#0B1120', '#162032']} style={s.header}>
+        <Text style={s.headerLabel}>SETTINGS</Text>
+        <Text style={s.headerTitle}>Preferences</Text>
+      </LinearGradient>
 
-      <View style={styles.content}>
-        {/* Energy Settings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>⚡ Energy Settings</Text>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Electricity Rate (per kWh)</Text>
-            <TextInput
-              style={styles.input}
-              value={electricityRate}
-              onChangeText={setElectricityRate}
-              keyboardType="decimal-pad"
-              placeholder="0.12"
-              placeholderTextColor="#999"
-            />
-            <Text style={styles.hint}>Your local electricity rate for cost calculations</Text>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Currency Symbol</Text>
-            <TextInput
-              style={styles.input}
-              value={currency}
-              onChangeText={setCurrency}
-              placeholder="$"
-              maxLength={3}
-              placeholderTextColor="#999"
-            />
-          </View>
+      <View style={s.body}>
+        {/* Energy */}
+        <Text style={s.secTitle}>Energy</Text>
+        <View style={s.card}>
+          <Text style={s.label}>Electricity Rate (per kWh)</Text>
+          <TextInput style={s.input} value={rate} onChangeText={setRate}
+            keyboardType="decimal-pad" placeholder="0.12" placeholderTextColor={Colors.textMuted} />
+          <Text style={s.hint}>Your local rate for cost calculations</Text>
+          <View style={s.divider} />
+          <Text style={s.label}>Currency Symbol</Text>
+          <TextInput style={s.input} value={currency} onChangeText={setCurrency}
+            placeholder="$" maxLength={3} placeholderTextColor={Colors.textMuted} />
         </View>
 
-        {/* Location Settings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📍 Location</Text>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Weather Location</Text>
-            <TextInput
-              style={styles.input}
-              value={weatherLocation}
-              onChangeText={setWeatherLocation}
-              placeholder="New York"
-              placeholderTextColor="#999"
-            />
-            <Text style={styles.hint}>City name for weather-based tips</Text>
-          </View>
+        {/* Location */}
+        <Text style={s.secTitle}>Location</Text>
+        <View style={s.card}>
+          <Text style={s.label}>Weather Location</Text>
+          <TextInput style={s.input} value={location} onChangeText={setLocation}
+            placeholder="New York" placeholderTextColor={Colors.textMuted} />
+          <Text style={s.hint}>City name for weather-based tips</Text>
         </View>
 
-        {/* App Preferences */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📱 App Preferences</Text>
-
-          <View style={styles.switchRow}>
-            <View style={styles.switchInfo}>
-              <Text style={styles.switchLabel}>🔔 Notifications</Text>
-              <Text style={styles.switchHint}>Get reminders and alerts</Text>
+        {/* Toggles */}
+        <Text style={s.secTitle}>Preferences</Text>
+        <View style={s.card}>
+          {[
+            { label: 'Notifications', desc: 'Reminders & alerts', key: 'notificationsEnabled' as const, icon: '🔔' },
+            { label: 'Voice Tips', desc: 'Text-to-speech', key: 'voiceEnabled' as const, icon: '🔊' },
+          ].map((t, i) => (
+            <View key={t.key}>
+              {i > 0 && <View style={s.divider} />}
+              <View style={s.switchRow}>
+                <Text style={s.switchIcon}>{t.icon}</Text>
+                <View style={s.switchCopy}>
+                  <Text style={s.switchLabel}>{t.label}</Text>
+                  <Text style={s.switchDesc}>{t.desc}</Text>
+                </View>
+                <Switch value={settings[t.key]}
+                  onValueChange={(v) => updateSettings({ [t.key]: v })}
+                  trackColor={{ false: Colors.border, true: Colors.primaryLight }}
+                  thumbColor={settings[t.key] ? Colors.primary : '#ccc'} />
+              </View>
             </View>
-            <Switch
-              value={settings.notificationsEnabled}
-              onValueChange={handleToggleNotifications}
-              trackColor={{ false: '#ccc', true: '#81C784' }}
-              thumbColor={settings.notificationsEnabled ? '#4CAF50' : '#f4f3f4'}
-            />
-          </View>
-
-          <View style={styles.switchRow}>
-            <View style={styles.switchInfo}>
-              <Text style={styles.switchLabel}>🔊 Voice Tips</Text>
-              <Text style={styles.switchHint}>Enable text-to-speech for tips</Text>
-            </View>
-            <Switch
-              value={settings.voiceEnabled}
-              onValueChange={async (value) => await updateSettings({ voiceEnabled: value })}
-              trackColor={{ false: '#ccc', true: '#81C784' }}
-              thumbColor={settings.voiceEnabled ? '#4CAF50' : '#f4f3f4'}
-            />
-          </View>
-
-          <View style={styles.switchRow}>
-            <View style={styles.switchInfo}>
-              <Text style={styles.switchLabel}>🌙 Dark Mode</Text>
-              <Text style={styles.switchHint}>Enable dark theme (coming soon)</Text>
-            </View>
-            <Switch
-              value={settings.darkMode}
-              onValueChange={handleToggleDarkMode}
-              trackColor={{ false: '#ccc', true: '#81C784' }}
-              thumbColor={settings.darkMode ? '#4CAF50' : '#f4f3f4'}
-              disabled
-            />
-          </View>
+          ))}
         </View>
 
-        {/* Environmental Factors */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🌍 Environmental Factors</Text>
-
-          <View style={styles.infoCard}>
-            <Text style={styles.infoLabel}>CO₂ Factor</Text>
-            <Text style={styles.infoValue}>{settings.co2Factor} kg CO₂ per kWh</Text>
-            <Text style={styles.infoHint}>Average grid emission factor (USA)</Text>
-          </View>
+        {/* CO2 */}
+        <Text style={s.secTitle}>Environmental</Text>
+        <View style={s.card}>
+          <Text style={s.label}>CO₂ Emission Factor (kg/kWh)</Text>
+          <TextInput style={s.input} value={co2Factor} onChangeText={setCo2Factor}
+            keyboardType="decimal-pad" placeholder="0.92" placeholderTextColor={Colors.textMuted} />
+          <Text style={s.hint}>Used in every impact and CO₂ calculation</Text>
         </View>
 
-        {/* Save Button */}
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>💾 Save Settings</Text>
+        {/* Save */}
+        <TouchableOpacity onPress={handleSave} activeOpacity={0.85}>
+          <LinearGradient colors={['#00E676', '#00C853']} style={s.saveBtn}>
+            <Text style={s.saveTxt}>Save Settings</Text>
+          </LinearGradient>
         </TouchableOpacity>
 
         {/* About */}
-        <View style={styles.aboutSection}>
-          <Text style={styles.aboutTitle}>About Energy Tracker</Text>
-          <Text style={styles.aboutText}>
-            Version 1.0.0{'\n'}
-            Track, analyze, and reduce your energy consumption with smart insights and personalized tips.
-          </Text>
-          <Text style={styles.aboutCopyright}>© 2025 Energy Tracker App</Text>
+        <View style={[s.card, s.aboutSection]}>
+          <Text style={s.aboutTitle}>SaveVolt</Text>
+          <Text style={s.aboutBody}>Version 1.0.0{'\n'}Track, analyze, and reduce your energy.</Text>
         </View>
       </View>
     </ScrollView>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  header: {
-    padding: 20,
-    backgroundColor: '#607D8B',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#fff',
-    opacity: 0.9,
-  },
-  content: {
-    padding: 15,
-  },
-  section: {
-    marginBottom: 25,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 15,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    color: '#333',
-  },
-  hint: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 5,
-  },
-  switchRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  switchInfo: {
-    flex: 1,
-  },
-  switchLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  switchHint: {
-    fontSize: 13,
-    color: '#666',
-  },
-  infoCard: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  infoLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-    marginBottom: 5,
-  },
-  infoValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
-  },
-  infoHint: {
-    fontSize: 12,
-    color: '#666',
-  },
-  saveButton: {
-    backgroundColor: '#4CAF50',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginVertical: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  aboutSection: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    marginTop: 20,
-    marginBottom: 30,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  aboutTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 10,
-  },
-  aboutText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 15,
-  },
-  aboutCopyright: {
-    fontSize: 12,
-    color: '#999',
-  },
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: Colors.background },
+  header: { paddingTop: 54, paddingBottom: 28, paddingHorizontal: Spacing.page, alignItems: 'center' },
+  headerLabel: { ...Typography.overline, color: Colors.primary, marginBottom: 4 },
+  headerTitle: { ...Typography.displaySmall, color: '#fff' },
+  body: { padding: Spacing.page },
+  secTitle: { ...Typography.label, color: Colors.textSecondary, marginTop: 20, marginBottom: 10, letterSpacing: 0.5 },
+  card: { backgroundColor: Colors.card, borderRadius: Radius.card, padding: Spacing.lg, ...Shadows.sm },
+  aboutSection: { alignItems: 'center', marginBottom: 40 },
+  label: { ...Typography.label, color: Colors.textSecondary, marginBottom: 6 },
+  input: { backgroundColor: Colors.background, borderRadius: Radius.sm, padding: 14, ...Typography.bodyLarge, color: Colors.text, borderWidth: 1, borderColor: Colors.border },
+  hint: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 4 },
+  divider: { height: 1, backgroundColor: Colors.divider, marginVertical: 16 },
+  switchRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
+  switchIcon: { fontSize: 20, marginRight: 12 },
+  switchCopy: { flex: 1 },
+  switchLabel: { ...Typography.h3, color: Colors.text },
+  switchDesc: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 1 },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  infoLabel: { ...Typography.label, color: Colors.textSecondary },
+  infoVal: { ...Typography.statSmall, color: Colors.primary },
+  saveBtn: { borderRadius: Radius.md, paddingVertical: 16, alignItems: 'center', marginTop: 24 },
+  saveTxt: { ...Typography.h3, color: Colors.dark },
+  aboutTitle: { ...Typography.h2, color: Colors.text, marginBottom: 8 },
+  aboutBody: { ...Typography.bodySmall, color: Colors.textMuted, textAlign: 'center', lineHeight: 18 },
 });
 
 export default SettingsScreen;

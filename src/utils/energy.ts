@@ -6,7 +6,7 @@ import {
   TrendData,
   ComparisonData,
 } from '../types';
-import { format, subDays, subMonths, startOfDay, endOfDay } from 'date-fns';
+import { format, subDays } from 'date-fns';
 
 // Constants
 const DEFAULT_ELECTRICITY_RATE = 0.12; // $ per kWh
@@ -42,8 +42,11 @@ export const calculateCost = (
 /**
  * Calculate CO2 emissions from energy consumption
  */
-export const calculateCO2Emissions = (consumptionKWh: number): number => {
-  return consumptionKWh * CO2_FACTOR;
+export const calculateCO2Emissions = (
+  consumptionKWh: number,
+  co2Factor: number = CO2_FACTOR
+): number => {
+  return consumptionKWh * co2Factor;
 };
 
 /**
@@ -58,7 +61,8 @@ export const co2ToTrees = (co2Kg: number): number => {
  */
 export const calculateEnergyConsumptions = (
   appliances: Appliance[],
-  rate: number = DEFAULT_ELECTRICITY_RATE
+  rate: number = DEFAULT_ELECTRICITY_RATE,
+  co2Factor: number = CO2_FACTOR
 ): EnergyConsumption[] => {
   const totalDailyConsumption = appliances.reduce(
     (sum, app) => sum + calculateApplianceConsumption(app, 1),
@@ -70,7 +74,7 @@ export const calculateEnergyConsumptions = (
     const monthlyConsumption = dailyConsumption * 30;
     const dailyCost = calculateCost(dailyConsumption, rate);
     const monthlyCost = calculateCost(monthlyConsumption, rate);
-    const co2Emissions = calculateCO2Emissions(monthlyConsumption);
+    const co2Emissions = calculateCO2Emissions(monthlyConsumption, co2Factor);
     const percentage =
       totalDailyConsumption > 0
         ? (dailyConsumption / totalDailyConsumption) * 100
@@ -154,7 +158,7 @@ export const calculateComparison = (
 export const generateTrendData = (
   usageRecords: any[],
   days: number,
-  rate: number = DEFAULT_ELECTRICITY_RATE
+  _rate: number = DEFAULT_ELECTRICITY_RATE
 ): TrendData[] => {
   const trendData: TrendData[] = [];
   const today = new Date();
@@ -230,17 +234,18 @@ export const formatCO2 = (co2Kg: number): string => {
  * Get default appliances database
  */
 export const getDefaultAppliances = () => {
+  const now = new Date();
   return [
-    { name: 'LED Bulb', category: ApplianceCategory.LIGHTING, powerRating: 10 },
-    { name: 'CFL Bulb', category: ApplianceCategory.LIGHTING, powerRating: 15 },
-    { name: 'Ceiling Fan', category: ApplianceCategory.COOLING, powerRating: 75 },
-    { name: 'Air Conditioner', category: ApplianceCategory.COOLING, powerRating: 1500 },
-    { name: 'Refrigerator', category: ApplianceCategory.KITCHEN, powerRating: 150 },
-    { name: 'Microwave', category: ApplianceCategory.KITCHEN, powerRating: 1000 },
-    { name: 'TV', category: ApplianceCategory.ENTERTAINMENT, powerRating: 100 },
-    { name: 'Laptop', category: ApplianceCategory.OFFICE, powerRating: 65 },
-    { name: 'Washing Machine', category: ApplianceCategory.LAUNDRY, powerRating: 500 },
-    { name: 'Water Heater', category: ApplianceCategory.HEATING, powerRating: 2000 },
+    { id: 'def-1', name: 'LED Bulb', category: ApplianceCategory.LIGHTING, powerRating: 10, hoursPerDay: 4, quantity: 1, isActive: true, createdAt: now },
+    { id: 'def-2', name: 'CFL Bulb', category: ApplianceCategory.LIGHTING, powerRating: 15, hoursPerDay: 4, quantity: 1, isActive: true, createdAt: now },
+    { id: 'def-3', name: 'Ceiling Fan', category: ApplianceCategory.COOLING, powerRating: 75, hoursPerDay: 8, quantity: 1, isActive: true, createdAt: now },
+    { id: 'def-4', name: 'Air Conditioner', category: ApplianceCategory.COOLING, powerRating: 1500, hoursPerDay: 4, quantity: 1, isActive: true, createdAt: now },
+    { id: 'def-5', name: 'Refrigerator', category: ApplianceCategory.KITCHEN, powerRating: 150, hoursPerDay: 24, quantity: 1, isActive: true, createdAt: now },
+    { id: 'def-6', name: 'Microwave', category: ApplianceCategory.KITCHEN, powerRating: 1000, hoursPerDay: 0.5, quantity: 1, isActive: true, createdAt: now },
+    { id: 'def-7', name: 'TV', category: ApplianceCategory.ENTERTAINMENT, powerRating: 100, hoursPerDay: 4, quantity: 1, isActive: true, createdAt: now },
+    { id: 'def-8', name: 'Laptop', category: ApplianceCategory.OFFICE, powerRating: 65, hoursPerDay: 8, quantity: 1, isActive: true, createdAt: now },
+    { id: 'def-9', name: 'Washing Machine', category: ApplianceCategory.LAUNDRY, powerRating: 500, hoursPerDay: 1, quantity: 1, isActive: true, createdAt: now },
+    { id: 'def-10', name: 'Water Heater', category: ApplianceCategory.HEATING, powerRating: 2000, hoursPerDay: 2, quantity: 1, isActive: true, createdAt: now },
   ];
 };
 

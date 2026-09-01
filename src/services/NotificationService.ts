@@ -45,6 +45,7 @@ class NotificationService {
     quietHoursStart: '22:00',
     quietHoursEnd: '08:00',
   };
+  private firebaseAvailable: boolean = true;
 
   private constructor() {}
 
@@ -63,35 +64,40 @@ class NotificationService {
       // Configure local notifications
       this.configurePushNotifications();
 
-      // Request permissions
-      const authStatus = await messaging().requestPermission();
-      const enabled =
-        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+      try {
+        // Request permissions
+        const authStatus = await messaging().requestPermission();
+        const enabled =
+          authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+          authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
-      if (enabled) {
-        // Get FCM token
-        this.fcmToken = await messaging().getToken();
-        console.log('FCM Token:', this.fcmToken);
+        if (enabled) {
+          // Get FCM token
+          this.fcmToken = await messaging().getToken();
+          console.log('FCM Token:', this.fcmToken);
 
-        // Save token to cloud for later use
-        await this.saveFCMToken(this.fcmToken);
+          // Save token to cloud for later use
+          await this.saveFCMToken(this.fcmToken);
 
-        // Listen for token refresh
-        messaging().onTokenRefresh(async (token) => {
-          this.fcmToken = token;
-          await this.saveFCMToken(token);
-        });
+          // Listen for token refresh
+          messaging().onTokenRefresh(async (token) => {
+            this.fcmToken = token;
+            await this.saveFCMToken(token);
+          });
 
-        // Handle foreground notifications
-        messaging().onMessage(async (remoteMessage) => {
-          await this.handleRemoteNotification(remoteMessage);
-        });
+          // Handle foreground notifications
+          messaging().onMessage(async (remoteMessage) => {
+            await this.handleRemoteNotification(remoteMessage);
+          });
 
-        // Handle background notifications
-        messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-          await this.handleRemoteNotification(remoteMessage);
-        });
+          // Handle background notifications
+          messaging().setBackgroundMessageHandler(async (remoteMessage) => {
+            await this.handleRemoteNotification(remoteMessage);
+          });
+        }
+      } catch (error) {
+        console.warn('Firebase messaging not configured, remote push notifications disabled.', error);
+        this.firebaseAvailable = false;
       }
 
       // Load preferences
@@ -204,7 +210,7 @@ class NotificationService {
       vibrate: true,
       playSound: true,
       userInfo: notification.data,
-      smallIcon: 'ic_notification',
+      smallIcon: 'ic_launcher',
       largeIcon: 'ic_launcher',
     });
   }
@@ -326,7 +332,7 @@ class NotificationService {
     if (remoteMessage.notification) {
       await this.sendLocalNotification({
         id: remoteMessage.messageId || `remote-${Date.now()}`,
-        title: remoteMessage.notification.title || 'Energy Tracker',
+        title: remoteMessage.notification.title || 'SaveVolt',
         message: remoteMessage.notification.body || '',
         type: remoteMessage.data?.type || 'energy',
         priority: 'normal',

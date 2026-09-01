@@ -1,390 +1,339 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Dimensions,
+  StatusBar,
+  TouchableOpacity,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { useEnergy } from '../context/EnergyContext';
 import { PieChart, BarChart } from 'react-native-chart-kit';
 import { formatEnergy, formatCost, formatCO2 } from '../utils/energy';
+import { Colors, Typography, Spacing, Radius, Shadows } from '../theme';
 
-const screenWidth = Dimensions.get('window').width;
+const W = Dimensions.get('window').width;
 
-const DashboardScreen = () => {
+const DashboardScreen = ({ navigation }: any) => {
   const { dashboardData, settings } = useEnergy();
+  const [reductionPercent, setReductionPercent] = useState(20);
 
   if (!dashboardData) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyIcon}>📊</Text>
-        <Text style={styles.emptyTitle}>No Data Available</Text>
-        <Text style={styles.emptyText}>
-          Add appliances to see your energy dashboard
+      <View style={s.emptyWrap}>
+        <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+        <View style={s.emptyGlow} />
+        <Text style={s.emptyIcon}>⚡</Text>
+        <Text style={s.emptyTitle}>Welcome to SaveVolt</Text>
+        <Text style={s.emptyBody}>
+          Add your first appliance to unlock{'\n'}your personal energy dashboard
         </Text>
+        <TouchableOpacity
+          style={s.emptyAction}
+          onPress={() => navigation.navigate('Track', { screen: 'AddAppliance' })}
+          activeOpacity={0.85}
+        >
+          <Text style={s.emptyActionText}>Add an appliance</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
-  const { totalEnergyConsumed, totalCost, totalCO2Saved, treesEquivalent, topConsumers, consumptionByCategory } = dashboardData;
+  const {
+    totalEnergyConsumed, totalCost, totalCO2Saved,
+    treesEquivalent, topConsumers, consumptionByCategory,
+  } = dashboardData;
 
-  // Prepare chart data
-  const chartColors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'];
-  
-  const pieChartData = consumptionByCategory.map((item, index) => ({
+  const pieColors = Colors.chart;
+  const pieData = consumptionByCategory.map((item, i) => ({
     name: item.category,
     consumption: item.consumption,
-    color: chartColors[index % chartColors.length],
-    legendFontColor: '#333',
-    legendFontSize: 12,
+    color: pieColors[i % pieColors.length],
+    legendFontColor: Colors.textSecondary,
+    legendFontSize: 11,
   }));
 
-  const barChartData = {
-    labels: topConsumers.map(c => c.applianceName.substring(0, 10)),
-    datasets: [{
-      data: topConsumers.map(c => c.monthlyConsumption),
-    }],
+  const barData = {
+    labels: topConsumers.map(c => c.applianceName.length > 8 ? c.applianceName.substring(0, 8) + '..' : c.applianceName),
+    datasets: [{ data: topConsumers.length > 0 ? topConsumers.map(c => c.monthlyConsumption) : [0] }],
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>📊 Eco-Savings Dashboard</Text>
-        <Text style={styles.subtitle}>Your energy impact at a glance</Text>
-      </View>
+    <ScrollView style={s.screen} showsVerticalScrollIndicator={false}>
+      <StatusBar barStyle="light-content" backgroundColor={Colors.dark} />
 
-      {/* Key Metrics */}
-      <View style={styles.metricsContainer}>
-        <View style={styles.metricCard}>
-          <Text style={styles.metricIcon}>⚡</Text>
-          <Text style={styles.metricLabel}>Monthly Energy</Text>
-          <Text style={styles.metricValue}>{formatEnergy(totalEnergyConsumed)}</Text>
-        </View>
+      {/* ── Hero Header ── */}
+      <LinearGradient colors={['#0B1120', '#162032', '#1A2E40']} style={s.hero}>
+        <Text style={s.heroLabel}>MONTHLY OVERVIEW</Text>
+        <Text style={s.heroValue}>{formatEnergy(totalEnergyConsumed)}</Text>
+        <Text style={s.heroSub}>
+          {formatCost(totalCost, settings.currency)} estimated cost
+        </Text>
 
-        <View style={styles.metricCard}>
-          <Text style={styles.metricIcon}>💰</Text>
-          <Text style={styles.metricLabel}>Monthly Cost</Text>
-          <Text style={styles.metricValue}>{formatCost(totalCost, settings.currency)}</Text>
-        </View>
-
-        <View style={styles.metricCard}>
-          <Text style={styles.metricIcon}>🌍</Text>
-          <Text style={styles.metricLabel}>CO₂ Emissions</Text>
-          <Text style={styles.metricValue}>{formatCO2(totalCO2Saved)}</Text>
-        </View>
-
-        <View style={styles.metricCard}>
-          <Text style={styles.metricIcon}>🌳</Text>
-          <Text style={styles.metricLabel}>Tree Equivalent</Text>
-          <Text style={styles.metricValue}>{treesEquivalent.toFixed(1)} trees</Text>
-        </View>
-      </View>
-
-      {/* Environmental Impact */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🌱 Environmental Impact</Text>
-        <View style={styles.impactCard}>
-          <Text style={styles.impactText}>
-            Your monthly energy usage generates <Text style={styles.highlight}>{formatCO2(totalCO2Saved)}</Text> of CO₂ emissions.
-          </Text>
-          <Text style={styles.impactText}>
-            That's equivalent to <Text style={styles.highlight}>{treesEquivalent.toFixed(1)} trees</Text> needed to offset your carbon footprint!
-          </Text>
-          <View style={styles.impactTip}>
-            <Text style={styles.impactTipText}>
-              💡 Reducing usage by 20% would save {formatCO2(totalCO2Saved * 0.2)} of CO₂
-            </Text>
+        {/* Glowing metric strip */}
+        <View style={s.metricStrip}>
+          <View style={s.metricPill}>
+            <Text style={s.pillValue}>{formatCO2(totalCO2Saved)}</Text>
+            <Text style={s.pillLabel}>CO₂</Text>
+          </View>
+          <View style={s.metricDivider} />
+          <View style={s.metricPill}>
+            <Text style={s.pillValue}>{treesEquivalent.toFixed(1)}</Text>
+            <Text style={s.pillLabel}>Trees Offset</Text>
+          </View>
+          <View style={s.metricDivider} />
+          <View style={s.metricPill}>
+            <Text style={s.pillValue}>{topConsumers.length}</Text>
+            <Text style={s.pillLabel}>Appliances</Text>
           </View>
         </View>
-      </View>
+      </LinearGradient>
 
-      {/* Top Consumers */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🔥 Top Energy Consumers</Text>
-        {topConsumers.map((consumer, index) => (
-          <View key={consumer.applianceId} style={styles.consumerCard}>
-            <View style={styles.consumerHeader}>
-              <Text style={styles.consumerRank}>#{index + 1}</Text>
-              <View style={styles.consumerInfo}>
-                <Text style={styles.consumerName}>{consumer.applianceName}</Text>
-                <Text style={styles.consumerPercent}>{consumer.percentage.toFixed(1)}% of total</Text>
-              </View>
-              <Text style={styles.consumerValue}>{formatEnergy(consumer.monthlyConsumption)}</Text>
-            </View>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${consumer.percentage}%` }]} />
-            </View>
+      {/* ── Quick Stats Row ── */}
+      <View style={s.statsRow}>
+        {[
+          { icon: '⚡', label: 'Energy', value: formatEnergy(totalEnergyConsumed), color: '#00E676' },
+          { icon: '💰', label: 'Cost', value: formatCost(totalCost, settings.currency), color: '#F59E0B' },
+          { icon: '🌍', label: 'CO₂', value: formatCO2(totalCO2Saved), color: '#3B82F6' },
+          { icon: '🌳', label: 'Trees', value: `${treesEquivalent.toFixed(1)}`, color: '#10B981' },
+        ].map((m) => (
+          <View key={m.label} style={s.statCard}>
+            <View style={[s.statDot, { backgroundColor: m.color }]} />
+            <Text style={s.statValue}>{m.value}</Text>
+            <Text style={s.statLabel}>{m.label}</Text>
           </View>
         ))}
       </View>
 
-      {/* Category Breakdown - Pie Chart */}
+      {/* ── Top Consumers ── */}
+      <View style={s.section}>
+        <Text style={s.sectionTitle}>Top Consumers</Text>
+        {topConsumers.slice(0, 5).map((consumer, index) => (
+          <View key={consumer.applianceId} style={s.consumerRow}>
+            <View style={s.consumerLeft}>
+              <View style={[s.rankBadge, index === 0 && s.rankBadgeTop]}>
+                <Text style={[s.rankText, index === 0 && s.rankTextTop]}>
+                  {index + 1}
+                </Text>
+              </View>
+              <View style={s.consumerInfo}>
+                <Text style={s.consumerName}>{consumer.applianceName}</Text>
+                <Text style={s.consumerPct}>
+                  {consumer.percentage.toFixed(1)}% of total
+                </Text>
+              </View>
+            </View>
+            <Text style={s.consumerKwh}>{formatEnergy(consumer.monthlyConsumption)}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* ── Category Pie ── */}
       {consumptionByCategory.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📈 Consumption by Category</Text>
-          <View style={styles.chartContainer}>
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>By Category</Text>
+          <View style={s.chartCard}>
             <PieChart
-              data={pieChartData}
-              width={screenWidth - 40}
-              height={220}
+              data={pieData}
+              width={W - Spacing.page * 2 - Spacing.lg * 2}
+              height={200}
               chartConfig={{
-                color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                color: (opacity = 1) => `rgba(0,0,0,${opacity})`,
               }}
               accessor="consumption"
               backgroundColor="transparent"
-              paddingLeft="15"
+              paddingLeft="10"
               absolute
             />
           </View>
         </View>
       )}
 
-      {/* Top Consumers - Bar Chart */}
+      {/* ── Bar Chart ── */}
       {topConsumers.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📊 Monthly Consumption Breakdown</Text>
-          <View style={styles.chartContainer}>
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>Consumption Breakdown</Text>
+          <View style={s.chartCard}>
             <BarChart
-              data={barChartData}
-              width={screenWidth - 40}
-              height={220}
+              data={barData}
+              width={W - Spacing.page * 2 - Spacing.lg * 2}
+              height={210}
               yAxisLabel=""
               yAxisSuffix=" kWh"
               chartConfig={{
-                backgroundColor: '#fff',
-                backgroundGradientFrom: '#fff',
-                backgroundGradientTo: '#fff',
+                backgroundColor: Colors.card,
+                backgroundGradientFrom: Colors.card,
+                backgroundGradientTo: Colors.card,
                 decimalPlaces: 1,
-                color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`,
-                labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                style: {
-                  borderRadius: 16,
-                },
-                propsForLabels: {
-                  fontSize: 10,
-                },
+                color: (opacity = 1) => `rgba(0, 230, 118, ${opacity})`,
+                labelColor: () => Colors.textSecondary,
+                barPercentage: 0.6,
+                propsForLabels: { fontSize: 10 },
+                propsForBackgroundLines: { strokeDasharray: '', stroke: Colors.borderLight },
               }}
-              style={styles.chart}
+              style={{ borderRadius: Radius.md }}
               showValuesOnTopOfBars
             />
           </View>
         </View>
       )}
 
-      {/* Cost Breakdown */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>💸 Cost Analysis</Text>
-        {consumptionByCategory.map((category, index) => (
-          <View key={category.category} style={styles.costRow}>
-            <View style={[styles.colorDot, { backgroundColor: chartColors[index % chartColors.length] }]} />
-            <Text style={styles.costCategory}>{category.category}</Text>
-            <Text style={styles.costValue}>{formatCost(category.cost, settings.currency)}</Text>
+      {/* ── Cost Breakdown ── */}
+      <View style={[s.section, s.costSection]}>
+        <Text style={s.sectionTitle}>Cost Analysis</Text>
+        <View style={s.costCard}>
+          {consumptionByCategory.map((cat, i) => (
+            <View key={cat.category} style={s.costRow}>
+              <View style={[s.costDot, { backgroundColor: pieColors[i % pieColors.length] }]} />
+              <Text style={s.costCategory}>{cat.category}</Text>
+              <Text style={s.costValue}>{formatCost(cat.cost, settings.currency)}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* ── Eco Insight ── */}
+      <View style={[s.section, s.insightSection]}>
+        <LinearGradient
+          colors={['#0B1120', '#162032']}
+          style={s.insightCard}
+        >
+          <Text style={s.insightEmoji}>🌱</Text>
+          <Text style={s.insightTitle}>Savings calculator</Text>
+          <View style={s.reductionChoices}>
+            {[10, 20, 30].map((percent) => (
+              <TouchableOpacity
+                key={percent}
+                style={[s.reductionChoice, reductionPercent === percent && s.reductionChoiceActive]}
+                onPress={() => setReductionPercent(percent)}
+                accessibilityLabel={`Calculate ${percent} percent reduction`}
+              >
+                <Text style={[s.reductionChoiceText, reductionPercent === percent && s.reductionChoiceTextActive]}>{percent}%</Text>
+              </TouchableOpacity>
+            ))}
           </View>
-        ))}
+          <Text style={s.insightBody}>
+            Reducing usage by {reductionPercent}% would save{' '}
+            <Text style={s.insightHighlight}>{formatEnergy(totalEnergyConsumed * reductionPercent / 100)}</Text>,{' '}
+            <Text style={s.insightHighlight}>{formatCost(totalCost * reductionPercent / 100, settings.currency)}</Text>, and{' '}
+            <Text style={s.insightHighlight}>{formatCO2(totalCO2Saved * reductionPercent / 100)}</Text> each month.
+          </Text>
+        </LinearGradient>
       </View>
     </ScrollView>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
+// ─── Styles ───────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: Colors.background },
+
+  /* Empty state */
+  emptyWrap: {
+    flex: 1, justifyContent: 'center', alignItems: 'center',
+    backgroundColor: Colors.background, padding: 40,
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-    backgroundColor: '#f5f5f5',
+  emptyGlow: {
+    position: 'absolute', width: 200, height: 200,
+    borderRadius: 100, backgroundColor: Colors.primaryLight, opacity: 0.35,
   },
-  emptyIcon: {
-    fontSize: 80,
-    marginBottom: 20,
+  emptyIcon: { fontSize: 64, marginBottom: 16 },
+  emptyTitle: { ...Typography.h1, color: Colors.text, marginBottom: 8 },
+  emptyBody: { ...Typography.bodyMedium, color: Colors.textSecondary, textAlign: 'center', lineHeight: 22 },
+  emptyAction: { marginTop: 22, backgroundColor: Colors.dark, borderRadius: Radius.pill, paddingHorizontal: 20, paddingVertical: 12 },
+  emptyActionText: { ...Typography.label, color: Colors.primary },
+
+  /* Hero */
+  hero: {
+    paddingTop: 54, paddingBottom: 28, paddingHorizontal: Spacing.page, alignItems: 'center',
   },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 10,
+  heroLabel: { ...Typography.overline, color: Colors.primary, marginBottom: 6 },
+  heroValue: { ...Typography.displayLarge, color: '#fff', marginBottom: 4 },
+  heroSub: { ...Typography.bodyMedium, color: Colors.textOnDarkSub, marginBottom: 20 },
+
+  metricStrip: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
   },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
+  metricPill: { flex: 1, alignItems: 'center' },
+  metricDivider: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.12)' },
+  pillValue: { ...Typography.statSmall, color: Colors.primary },
+  pillLabel: { ...Typography.labelSmall, color: Colors.textOnDarkSub, marginTop: 2 },
+
+  /* Quick Stats */
+  statsRow: {
+    flexDirection: 'row', paddingHorizontal: Spacing.page,
+    marginTop: -16, gap: 10,
   },
-  header: {
-    padding: 20,
-    backgroundColor: '#4CAF50',
+  statCard: {
+    flex: 1, backgroundColor: Colors.card, borderRadius: Radius.card,
+    paddingVertical: 14, alignItems: 'center', ...Shadows.md,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
+  statDot: { width: 6, height: 6, borderRadius: 3, marginBottom: 6 },
+  statValue: { ...Typography.statSmall, color: Colors.text },
+  statLabel: { ...Typography.labelSmall, color: Colors.textMuted, marginTop: 2 },
+
+  /* Sections */
+  section: { paddingHorizontal: Spacing.page, marginTop: Spacing.section },
+  costSection: { marginBottom: 30 },
+  insightSection: { marginBottom: 40 },
+  sectionTitle: { ...Typography.h2, color: Colors.text, marginBottom: 14 },
+
+  /* Top Consumers */
+  consumerRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: Colors.card, borderRadius: Radius.md,
+    paddingVertical: 14, paddingHorizontal: 16, marginBottom: 8, ...Shadows.sm,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#fff',
-    opacity: 0.9,
-  },
-  metricsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 10,
-  },
-  metricCard: {
-    width: '48%',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 15,
-    margin: '1%',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  metricIcon: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  metricLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
-  },
-  metricValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  section: {
-    padding: 20,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
-  },
-  impactCard: {
-    backgroundColor: '#E8F5E9',
-    borderRadius: 12,
-    padding: 15,
-  },
-  impactText: {
-    fontSize: 15,
-    color: '#2E7D32',
-    marginBottom: 10,
-    lineHeight: 22,
-  },
-  highlight: {
-    fontWeight: 'bold',
-    color: '#1B5E20',
-  },
-  impactTip: {
-    backgroundColor: '#C8E6C9',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 5,
-  },
-  impactTipText: {
-    fontSize: 13,
-    color: '#1B5E20',
-  },
-  consumerCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  consumerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  consumerRank: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FF9800',
-    width: 40,
-  },
-  consumerInfo: {
-    flex: 1,
-  },
-  consumerName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  consumerPercent: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 2,
-  },
-  consumerValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#4CAF50',
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#4CAF50',
-    borderRadius: 4,
-  },
-  chartContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 10,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  chart: {
-    marginVertical: 8,
-    borderRadius: 16,
-  },
-  costRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 8,
-  },
-  colorDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+  consumerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  rankBadge: {
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: Colors.borderLight, justifyContent: 'center', alignItems: 'center',
     marginRight: 12,
   },
-  costCategory: {
-    flex: 1,
-    fontSize: 15,
-    color: '#333',
+  rankBadgeTop: { backgroundColor: Colors.primary },
+  rankText: { ...Typography.labelSmall, color: Colors.textSecondary },
+  rankTextTop: { color: Colors.dark },
+  consumerInfo: { flex: 1 },
+  consumerName: { ...Typography.label, color: Colors.text },
+  consumerPct: { ...Typography.bodySmall, color: Colors.textMuted, marginTop: 1 },
+  consumerKwh: { ...Typography.statSmall, color: Colors.primary },
+
+  /* Charts */
+  chartCard: {
+    backgroundColor: Colors.card, borderRadius: Radius.card,
+    padding: Spacing.lg, alignItems: 'center', ...Shadows.md,
   },
-  costValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#4CAF50',
+
+  /* Cost */
+  costCard: {
+    backgroundColor: Colors.card, borderRadius: Radius.card,
+    paddingHorizontal: 16, paddingVertical: 8, ...Shadows.md,
   },
+  costRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: Colors.divider,
+  },
+  costDot: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
+  costCategory: { flex: 1, ...Typography.bodyMedium, color: Colors.text },
+  costValue: { ...Typography.statSmall, color: Colors.primary },
+
+  /* Insight */
+  insightCard: {
+    borderRadius: Radius.xl, padding: Spacing.xxl, alignItems: 'center',
+  },
+  insightEmoji: { fontSize: 36, marginBottom: 10 },
+  insightTitle: { ...Typography.h3, color: '#fff', marginBottom: 8 },
+  reductionChoices: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  reductionChoice: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', borderRadius: Radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
+  reductionChoiceActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  reductionChoiceText: { ...Typography.labelSmall, color: Colors.textOnDarkSub },
+  reductionChoiceTextActive: { color: Colors.dark },
+  insightBody: { ...Typography.bodyMedium, color: Colors.textOnDarkSub, textAlign: 'center', lineHeight: 22 },
+  insightHighlight: { color: Colors.primary, fontWeight: '700' },
 });
 
 export default DashboardScreen;

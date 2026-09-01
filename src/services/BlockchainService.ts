@@ -90,13 +90,18 @@ class BlockchainService {
       if (privateKey) {
         wallet = new ethers.Wallet(privateKey);
       } else {
-        wallet = ethers.Wallet.createRandom();
+        try {
+          wallet = ethers.Wallet.createRandom();
+        } catch {
+          const randomHex = '0x' + Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join('');
+          wallet = new ethers.Wallet(randomHex);
+        }
       }
 
-      // Connect to Polygon Mumbai testnet (for demo)
+      // Connect to Polygon Amoy testnet
       // Note: Ethers v6 uses JsonRpcProvider differently
       this.provider = new ethers.JsonRpcProvider(
-        'https://rpc-mumbai.maticvigil.com/'
+        'https://rpc-amoy.polygon.technology/'
       );
       
       const connectedWallet = wallet.connect(this.provider);
@@ -252,7 +257,7 @@ class BlockchainService {
   /**
    * Transfer credit to another address
    */
-  public async transferCredit(creditId: string, toAddress: string): Promise<boolean> {
+  public async transferCredit(creditId: string, _toAddress: string): Promise<boolean> {
     const credit = this.credits.find((c) => c.id === creditId);
     if (!credit || credit.isRedeemed) {
       return false;

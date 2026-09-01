@@ -33,6 +33,7 @@ class CloudSyncService {
   };
   private syncListeners: ((status: SyncStatus) => void)[] = [];
   private unsubscribers: (() => void)[] = [];
+  private isAvailable: boolean = true;
 
   private constructor() {}
 
@@ -51,14 +52,19 @@ class CloudSyncService {
       this.userId = userId;
       this.deviceId = await this.getDeviceId();
 
-      // Enable offline persistence
-      await firestore().settings({
-        persistence: true,
-        cacheSizeBytes: firestore.CACHE_SIZE_UNLIMITED,
-      });
+      try {
+        // Enable offline persistence
+        await firestore().settings({
+          persistence: true,
+          cacheSizeBytes: firestore.CACHE_SIZE_UNLIMITED,
+        });
 
-      // Set up real-time listeners
-      await this.setupRealtimeSync();
+        // Set up real-time listeners
+        await this.setupRealtimeSync();
+      } catch (error) {
+        console.warn('Firebase is not configured, cloud sync disabled.', error);
+        this.isAvailable = false;
+      }
 
       console.log('Cloud sync initialized for user:', userId);
     } catch (error) {
@@ -76,20 +82,24 @@ class CloudSyncService {
     const collections = ['appliances', 'goals', 'reminders', 'achievements', 'rooms', 'challenges'];
 
     collections.forEach((collection) => {
-      const unsubscribe = firestore()
-        .collection('users')
-        .doc(this.userId!)
-        .collection(collection)
-        .onSnapshot(
-          (snapshot) => {
-            this.handleRealtimeUpdate(collection, snapshot);
-          },
-          (error) => {
-            console.error(`Error listening to ${collection}:`, error);
-          }
-        );
+      try {
+        const unsubscribe = firestore()
+          .collection('users')
+          .doc(this.userId!)
+          .collection(collection)
+          .onSnapshot(
+            (snapshot) => {
+              this.handleRealtimeUpdate(collection, snapshot);
+            },
+            (error) => {
+              console.error(`Error listening to ${collection}:`, error);
+            }
+          );
 
-      this.unsubscribers.push(unsubscribe);
+        this.unsubscribers.push(unsubscribe);
+      } catch (error) {
+        console.error(`Error setting up listener for ${collection}:`, error);
+      }
     });
   }
 
@@ -126,7 +136,7 @@ class CloudSyncService {
    * Sync appliances to cloud
    */
   public async syncAppliances(appliances: Appliance[]): Promise<void> {
-    if (!this.userId) return;
+    if (!this.userId || !this.isAvailable) return;
 
     this.updateSyncStatus({ isSyncing: true });
 
@@ -158,7 +168,7 @@ class CloudSyncService {
    * Sync goals to cloud
    */
   public async syncGoals(goals: Goal[]): Promise<void> {
-    if (!this.userId) return;
+    if (!this.userId || !this.isAvailable) return;
 
     this.updateSyncStatus({ isSyncing: true });
 
@@ -190,7 +200,7 @@ class CloudSyncService {
    * Sync reminders to cloud
    */
   public async syncReminders(reminders: Reminder[]): Promise<void> {
-    if (!this.userId) return;
+    if (!this.userId || !this.isAvailable) return;
 
     this.updateSyncStatus({ isSyncing: true });
 
@@ -222,7 +232,7 @@ class CloudSyncService {
    * Sync achievements to cloud
    */
   public async syncAchievements(achievements: Achievement[]): Promise<void> {
-    if (!this.userId) return;
+    if (!this.userId || !this.isAvailable) return;
 
     this.updateSyncStatus({ isSyncing: true });
 
@@ -254,7 +264,7 @@ class CloudSyncService {
    * Sync custom data to cloud
    */
   public async syncCustomData(collection: string, data: any[]): Promise<void> {
-    if (!this.userId) return;
+    if (!this.userId || !this.isAvailable) return;
 
     this.updateSyncStatus({ isSyncing: true });
 
@@ -286,7 +296,7 @@ class CloudSyncService {
    * Fetch data from cloud
    */
   public async fetchFromCloud<T>(collection: string): Promise<T[]> {
-    if (!this.userId) return [];
+    if (!this.userId || !this.isAvailable) return [];
 
     try {
       const snapshot = await firestore()
@@ -309,7 +319,7 @@ class CloudSyncService {
    * Delete item from cloud
    */
   public async deleteFromCloud(collection: string, itemId: string): Promise<void> {
-    if (!this.userId) return;
+    if (!this.userId || !this.isAvailable) return;
 
     try {
       await firestore()
@@ -429,7 +439,7 @@ class CloudSyncService {
    * Force full sync
    */
   public async forceSync(): Promise<void> {
-    if (!this.userId) return;
+    if (!this.userId || !this.isAvailable) return;
 
     this.updateSyncStatus({ isSyncing: true });
 

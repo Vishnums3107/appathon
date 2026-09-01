@@ -1,139 +1,100 @@
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Switch,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, StatusBar,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { useEnergy } from '../context/EnergyContext';
-import { calculateApplianceConsumption, formatEnergy, formatCost, formatCO2 } from '../utils/energy';
+import { calculateApplianceConsumption, formatEnergy, formatCost } from '../utils/energy';
+import { Colors, Typography, Spacing, Radius, Shadows } from '../theme';
 
-const EnergyAuditScreen = () => {
+const EnergyAuditScreen = ({ navigation }: any) => {
   const { appliances, toggleAppliance, deleteAppliance, settings } = useEnergy();
+  const sorted = [...appliances].sort((a, b) =>
+    calculateApplianceConsumption(b, 1) - calculateApplianceConsumption(a, 1));
+  const totalDailyConsumption = sorted.reduce((sum, appliance) => sum + calculateApplianceConsumption(appliance, 1), 0);
 
-  const sortedAppliances = [...appliances].sort((a, b) => {
-    const consumptionA = calculateApplianceConsumption(a, 1);
-    const consumptionB = calculateApplianceConsumption(b, 1);
-    return consumptionB - consumptionA;
-  });
-
-  const handleDelete = (id: string) => {
-    deleteAppliance(id);
-  };
+  const handleDelete = (id: string, name: string) =>
+    Alert.alert('Remove Appliance', `Remove "${name}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: () => deleteAppliance(id) },
+    ]);
 
   if (appliances.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyIcon}>📊</Text>
-        <Text style={styles.emptyTitle}>No Appliances Yet</Text>
-        <Text style={styles.emptyText}>
-          Add your appliances to see instant energy audit
-        </Text>
+      <View style={s.emptyWrap}>
+        <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+        <View style={s.emptyGlow} />
+        <Text style={s.emptyIcon}>📊</Text>
+        <Text style={s.emptyTitle}>No Appliances Yet</Text>
+        <Text style={s.emptyBody}>Add your appliances to see an instant energy audit</Text>
+        <TouchableOpacity style={s.emptyAction} onPress={() => navigation.navigate('AddAppliance')} activeOpacity={0.85}>
+          <Text style={s.emptyActionText}>Add an appliance</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>⚡ Energy Audit</Text>
-        <Text style={styles.subtitle}>
-          Real-time consumption analysis
-        </Text>
-      </View>
-
-      <View style={styles.content}>
-        <View style={styles.infoBox}>
-          <Text style={styles.infoIcon}>💡</Text>
-          <Text style={styles.infoText}>
-            Toggle appliances on/off to see impact. Top consumers listed first.
-          </Text>
-        </View>
-
-        {sortedAppliances.map((appliance, index) => {
-          const dailyConsumption = calculateApplianceConsumption(appliance, 1);
-          const monthlyConsumption = dailyConsumption * 30;
-          const dailyCost = dailyConsumption * settings.electricityRate;
-          const monthlyCost = monthlyConsumption * settings.electricityRate;
-
+    <ScrollView style={s.screen} showsVerticalScrollIndicator={false}>
+      <StatusBar barStyle="light-content" backgroundColor={Colors.dark} />
+      <LinearGradient colors={['#0B1120', '#162032']} style={s.header}>
+        <Text style={s.headerLabel}>ENERGY AUDIT</Text>
+        <Text style={s.headerTitle}>Live Analysis</Text>
+        <Text style={s.headerSub}>Toggle appliances to see real-time impact</Text>
+      </LinearGradient>
+      <View style={s.body}>
+        {sorted.map((appliance, index) => {
+          const daily = calculateApplianceConsumption(appliance, 1);
+          const monthly = daily * 30;
+          const dailyCost = daily * settings.electricityRate;
+          const monthlyCost = monthly * settings.electricityRate;
+          const share = totalDailyConsumption > 0 ? (daily / totalDailyConsumption) * 100 : 0;
+          const priority = share >= 40 ? 'High impact' : share >= 20 ? 'Medium impact' : 'Low impact';
+          const priorityStyle = share >= 40 ? s.highPriority : share >= 20 ? s.mediumPriority : s.lowPriority;
           return (
-            <View key={appliance.id} style={styles.applianceCard}>
-              <View style={styles.cardHeader}>
-                <View style={styles.cardHeaderLeft}>
-                  <Text style={styles.rank}>#{index + 1}</Text>
-                  <View>
-                    <Text style={styles.applianceName}>{appliance.name}</Text>
-                    <Text style={styles.applianceCategory}>{appliance.category}</Text>
+            <View key={appliance.id} style={s.card}>
+              <View style={s.cardTop}>
+                <View style={s.cardLeft}>
+                  <View style={[s.rank, index === 0 && s.rankFirst]}>
+                    <Text style={[s.rankTxt, index === 0 && s.rankTxtFirst]}>{index + 1}</Text>
+                  </View>
+                  <View style={s.nameWrap}>
+                    <Text style={s.name}>{appliance.name}</Text>
+                    <View style={s.categoryRow}>
+                      <Text style={s.cat}>{appliance.category}</Text>
+                      <View style={[s.priorityBadge, priorityStyle]}><Text style={s.priorityText}>{priority}</Text></View>
+                    </View>
                   </View>
                 </View>
-                <Switch
-                  value={appliance.isActive}
-                  onValueChange={() => toggleAppliance(appliance.id)}
-                  trackColor={{ false: '#ccc', true: '#81C784' }}
-                  thumbColor={appliance.isActive ? '#4CAF50' : '#f4f3f4'}
-                />
+                <Switch value={appliance.isActive} onValueChange={() => toggleAppliance(appliance.id)}
+                  trackColor={{ false: Colors.border, true: Colors.primaryLight }}
+                  thumbColor={appliance.isActive ? Colors.primary : '#ccc'} />
               </View>
-
               {appliance.isActive && (
                 <>
-                  <View style={styles.specs}>
-                    <View style={styles.specItem}>
-                      <Text style={styles.specLabel}>Power</Text>
-                      <Text style={styles.specValue}>{appliance.powerRating}W</Text>
+                  <View style={s.specStrip}>
+                    {[{ l: 'Power', v: `${appliance.powerRating}W` }, { l: 'Hours', v: `${appliance.hoursPerDay}h` }, { l: 'Qty', v: `${appliance.quantity}` }].map(sp => (
+                      <View key={sp.l} style={s.specItem}>
+                        <Text style={s.specVal}>{sp.v}</Text>
+                        <Text style={s.specLbl}>{sp.l}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <View style={s.consumGrid}>
+                    <View style={s.consumCol}>
+                      <Text style={s.consumTitle}>DAILY</Text>
+                      <Text style={s.consumVal}>{formatEnergy(daily)}</Text>
+                      <Text style={s.consumCost}>{formatCost(dailyCost, settings.currency)}</Text>
                     </View>
-                    <View style={styles.specItem}>
-                      <Text style={styles.specLabel}>Hours/Day</Text>
-                      <Text style={styles.specValue}>{appliance.hoursPerDay}h</Text>
-                    </View>
-                    <View style={styles.specItem}>
-                      <Text style={styles.specLabel}>Quantity</Text>
-                      <Text style={styles.specValue}>{appliance.quantity}</Text>
+                    <View style={s.consumDiv} />
+                    <View style={s.consumCol}>
+                      <Text style={s.consumTitle}>MONTHLY</Text>
+                      <Text style={s.consumVal}>{formatEnergy(monthly)}</Text>
+                      <Text style={s.consumCost}>{formatCost(monthlyCost, settings.currency)}</Text>
                     </View>
                   </View>
-
-                  <View style={styles.divider} />
-
-                  <View style={styles.consumption}>
-                    <Text style={styles.sectionTitle}>Daily Consumption</Text>
-                    <View style={styles.consumptionRow}>
-                      <View style={styles.consumptionItem}>
-                        <Text style={styles.consumptionLabel}>Energy</Text>
-                        <Text style={styles.consumptionValue}>
-                          {formatEnergy(dailyConsumption)}
-                        </Text>
-                      </View>
-                      <View style={styles.consumptionItem}>
-                        <Text style={styles.consumptionLabel}>Cost</Text>
-                        <Text style={styles.consumptionValue}>
-                          {formatCost(dailyCost, settings.currency)}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <Text style={styles.sectionTitle}>Monthly Projection</Text>
-                    <View style={styles.consumptionRow}>
-                      <View style={styles.consumptionItem}>
-                        <Text style={styles.consumptionLabel}>Energy</Text>
-                        <Text style={styles.consumptionValue}>
-                          {formatEnergy(monthlyConsumption)}
-                        </Text>
-                      </View>
-                      <View style={styles.consumptionItem}>
-                        <Text style={styles.consumptionLabel}>Cost</Text>
-                        <Text style={styles.consumptionValue}>
-                          {formatCost(monthlyCost, settings.currency)}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => handleDelete(appliance.id)}
-                  >
-                    <Text style={styles.deleteButtonText}>🗑️ Remove</Text>
+                  <TouchableOpacity style={s.delBtn} onPress={() => handleDelete(appliance.id, appliance.name)}>
+                    <Text style={s.delTxt}>Remove Appliance</Text>
                   </TouchableOpacity>
                 </>
               )}
@@ -145,174 +106,48 @@ const EnergyAuditScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-    backgroundColor: '#f5f5f5',
-  },
-  emptyIcon: {
-    fontSize: 80,
-    marginBottom: 20,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 10,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-  header: {
-    padding: 20,
-    backgroundColor: '#FF9800',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#fff',
-    opacity: 0.9,
-  },
-  content: {
-    padding: 15,
-  },
-  infoBox: {
-    flexDirection: 'row',
-    backgroundColor: '#FFF3E0',
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 15,
-    alignItems: 'center',
-  },
-  infoIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#E65100',
-  },
-  applianceCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  cardHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  rank: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FF9800',
-    marginRight: 12,
-    width: 40,
-  },
-  applianceName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  applianceCategory: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 2,
-  },
-  specs: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 15,
-  },
-  specItem: {
-    alignItems: 'center',
-  },
-  specLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
-  },
-  specValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#eee',
-    marginVertical: 15,
-  },
-  consumption: {
-    marginBottom: 15,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-    marginBottom: 8,
-    marginTop: 8,
-  },
-  consumptionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 10,
-  },
-  consumptionItem: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: '#f9f9f9',
-    padding: 12,
-    borderRadius: 8,
-    marginHorizontal: 5,
-  },
-  consumptionLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
-  },
-  consumptionValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FF9800',
-  },
-  deleteButton: {
-    backgroundColor: '#FFEBEE',
-    borderRadius: 6,
-    padding: 10,
-    alignItems: 'center',
-  },
-  deleteButtonText: {
-    color: '#C62828',
-    fontSize: 14,
-    fontWeight: '600',
-  },
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: Colors.background },
+  emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background, padding: 40 },
+  emptyGlow: { position: 'absolute', width: 180, height: 180, borderRadius: 90, backgroundColor: Colors.primaryLight, opacity: 0.3 },
+  emptyIcon: { fontSize: 56, marginBottom: 16 },
+  emptyTitle: { ...Typography.h1, color: Colors.text, marginBottom: 8 },
+  emptyBody: { ...Typography.bodyMedium, color: Colors.textSecondary, textAlign: 'center' },
+  emptyAction: { marginTop: 22, backgroundColor: Colors.dark, borderRadius: Radius.pill, paddingHorizontal: 20, paddingVertical: 12 },
+  emptyActionText: { ...Typography.label, color: Colors.primary },
+  header: { paddingTop: 54, paddingBottom: 28, paddingHorizontal: Spacing.page, alignItems: 'center' },
+  headerLabel: { ...Typography.overline, color: Colors.primary, marginBottom: 4 },
+  headerTitle: { ...Typography.displaySmall, color: '#fff', marginBottom: 6 },
+  headerSub: { ...Typography.bodySmall, color: Colors.textOnDarkSub },
+  body: { padding: Spacing.page },
+  card: { backgroundColor: Colors.card, borderRadius: Radius.card, padding: Spacing.lg, marginBottom: 14, ...Shadows.md },
+  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cardLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  rank: { width: 30, height: 30, borderRadius: 15, backgroundColor: Colors.borderLight, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  rankFirst: { backgroundColor: Colors.primary },
+  rankTxt: { ...Typography.labelSmall, color: Colors.textSecondary },
+  rankTxtFirst: { color: Colors.dark },
+  nameWrap: { flex: 1 },
+  name: { ...Typography.h3, color: Colors.text },
+  categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 2 },
+  cat: { ...Typography.bodySmall, color: Colors.textMuted },
+  priorityBadge: { borderRadius: Radius.pill, paddingHorizontal: 7, paddingVertical: 2 },
+  highPriority: { backgroundColor: '#FEE2E2' },
+  mediumPriority: { backgroundColor: '#FEF3C7' },
+  lowPriority: { backgroundColor: Colors.primarySoft },
+  priorityText: { ...Typography.labelSmall, color: Colors.textSecondary, fontSize: 9 },
+  specStrip: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: Colors.background, borderRadius: Radius.sm, paddingVertical: 12, marginTop: 14 },
+  specItem: { alignItems: 'center' },
+  specVal: { ...Typography.statSmall, color: Colors.text },
+  specLbl: { ...Typography.labelSmall, color: Colors.textMuted, marginTop: 2 },
+  consumGrid: { flexDirection: 'row', marginTop: 14, backgroundColor: Colors.background, borderRadius: Radius.sm, overflow: 'hidden' },
+  consumCol: { flex: 1, alignItems: 'center', paddingVertical: 14 },
+  consumDiv: { width: 1, backgroundColor: Colors.border },
+  consumTitle: { ...Typography.overline, color: Colors.textMuted, marginBottom: 6 },
+  consumVal: { ...Typography.stat, color: Colors.primary },
+  consumCost: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 2 },
+  delBtn: { marginTop: 14, borderRadius: Radius.sm, paddingVertical: 10, alignItems: 'center', backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA' },
+  delTxt: { ...Typography.label, color: Colors.danger },
 });
 
 export default EnergyAuditScreen;

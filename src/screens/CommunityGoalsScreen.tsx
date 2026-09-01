@@ -8,13 +8,15 @@ import {
   TextInput,
   Alert,
   Modal,
+  StatusBar,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import { Colors, Typography, Spacing, Radius, Shadows } from '../theme';
 import { useEnergy } from '../context/EnergyContext';
-import { formatEnergy, formatCost } from '../utils/energy';
-import { format } from 'date-fns';
+import { formatEnergy } from '../utils/energy';
 
 const CommunityGoalsScreen = () => {
-  const { communityGoals, addCommunityGoal, updateCommunityGoal, settings } = useEnergy();
+  const { communityGoals, addCommunityGoal, updateCommunityGoal } = useEnergy();
   const [showModal, setShowModal] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -46,7 +48,7 @@ const CommunityGoalsScreen = () => {
     setDescription('');
     setTargetEnergy('');
     setParticipants('');
-    
+
     Alert.alert('Success', 'Community goal created successfully!');
   };
 
@@ -68,19 +70,24 @@ const CommunityGoalsScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>🤝 Community Goals</Text>
-        <Text style={styles.subtitle}>Save energy together</Text>
+    <View style={s.container}>
+      <StatusBar barStyle="light-content" backgroundColor={Colors.dark} />
+      <LinearGradient colors={['#0B1120', '#162032']} style={s.header}>
+        <Text style={s.headerLabel}>SHARED PLANNING</Text>
+        <Text style={s.headerTitle}>Shared Goal Planner</Text>
+      </LinearGradient>
+
+      <View style={s.localNotice}>
+        <Text style={s.localNoticeText}>Goals and contributions are saved on this device. Share details manually until cloud collaboration is connected.</Text>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={s.content}>
         {communityGoals.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>🌍</Text>
-            <Text style={styles.emptyTitle}>No Community Goals Yet</Text>
-            <Text style={styles.emptyText}>
-              Create a goal and invite friends/family to save energy together
+          <View style={s.emptyContainer}>
+            <Text style={s.emptyIcon}>🌍</Text>
+            <Text style={s.emptyTitle}>No Community Goals Yet</Text>
+            <Text style={s.emptyText}>
+              Create a shared goal and record each contribution locally
             </Text>
           </View>
         ) : (
@@ -91,64 +98,64 @@ const CommunityGoalsScreen = () => {
             );
 
             return (
-              <View key={goal.id} style={styles.goalCard}>
-                <View style={styles.goalHeader}>
-                  <View style={styles.goalTitleContainer}>
-                    <Text style={styles.goalTitle}>{goal.title}</Text>
+              <View key={goal.id} style={s.goalCard}>
+                <View style={s.goalHeader}>
+                  <View style={s.goalTitleContainer}>
+                    <Text style={s.goalTitle}>{goal.title}</Text>
                     {goal.isAchieved && (
-                      <View style={styles.achievedBadge}>
-                        <Text style={styles.achievedText}>✅ Achieved!</Text>
+                      <View style={s.achievedBadge}>
+                        <Text style={s.achievedText}>Achieved!</Text>
                       </View>
                     )}
                   </View>
-                  <Text style={styles.creator}>by {goal.createdBy}</Text>
+                  <Text style={s.creator}>by {goal.createdBy}</Text>
                 </View>
 
                 {goal.description ? (
-                  <Text style={styles.goalDescription}>{goal.description}</Text>
+                  <Text style={s.goalDescription}>{goal.description}</Text>
                 ) : null}
 
-                <View style={styles.targetInfo}>
-                  <Text style={styles.targetLabel}>Target:</Text>
-                  <Text style={styles.targetValue}>
+                <View style={s.targetInfo}>
+                  <Text style={s.targetLabel}>Target:</Text>
+                  <Text style={s.targetValue}>
                     {formatEnergy(goal.targetEnergy)} to save
                   </Text>
                 </View>
 
-                <View style={styles.progressSection}>
-                  <View style={styles.progressInfo}>
-                    <Text style={styles.progressLabel}>Progress</Text>
-                    <Text style={styles.progressValue}>
+                <View style={s.progressSection}>
+                  <View style={s.progressInfo}>
+                    <Text style={s.progressLabel}>Progress</Text>
+                    <Text style={s.progressValue}>
                       {formatEnergy(goal.currentEnergy)} / {formatEnergy(goal.targetEnergy)}
                     </Text>
                   </View>
-                  <View style={styles.progressBar}>
+                  <View style={s.progressBar}>
                     <View
                       style={[
-                        styles.progressFill,
+                        s.progressFill,
                         {
                           width: `${Math.min(progress, 100)}%`,
-                          backgroundColor: goal.isAchieved ? '#4CAF50' : '#2196F3',
+                          backgroundColor: goal.isAchieved ? Colors.success : Colors.primary,
                         },
                       ]}
                     />
                   </View>
-                  <Text style={styles.progressPercentage}>{progress.toFixed(0)}%</Text>
+                  <Text style={s.progressPercentage}>{progress.toFixed(0)}%</Text>
                 </View>
 
-                <View style={styles.participantsSection}>
-                  <Text style={styles.participantsLabel}>
+                <View style={s.participantsSection}>
+                  <Text style={s.participantsLabel}>
                     👥 {goal.participants.length} Participants
                   </Text>
-                  <View style={styles.participantsList}>
+                  <View style={s.participantsList}>
                     {goal.participants.slice(0, 5).map((participant, index) => (
-                      <View key={index} style={styles.participantChip}>
-                        <Text style={styles.participantName}>{participant}</Text>
+                      <View key={index} style={s.participantChip}>
+                        <Text style={s.participantName}>{participant}</Text>
                       </View>
                     ))}
                     {goal.participants.length > 5 && (
-                      <View style={styles.participantChip}>
-                        <Text style={styles.participantName}>
+                      <View style={s.participantChip}>
+                        <Text style={s.participantName}>
                           +{goal.participants.length - 5} more
                         </Text>
                       </View>
@@ -156,30 +163,31 @@ const CommunityGoalsScreen = () => {
                   </View>
                 </View>
 
-                <View style={styles.goalFooter}>
-                  <Text style={[styles.deadline, daysLeft < 7 && styles.deadlineUrgent]}>
+                <View style={s.goalFooter}>
+                  <Text style={[s.deadline, daysLeft < 7 && s.deadlineUrgent]}>
                     ⏰ {daysLeft > 0 ? `${daysLeft} days left` : 'Expired'}
                   </Text>
                   {!goal.isAchieved && (
                     <TouchableOpacity
-                      style={styles.contributeButton}
                       onPress={() => {
-                        Alert.prompt(
+                        Alert.alert(
                           'Contribute Energy Savings',
-                          `How many kWh have you saved for "${goal.title}"?`,
-                          (value) => {
-                            const amount = parseFloat(value);
-                            if (!isNaN(amount) && amount > 0) {
-                              handleContribute(goal.id, amount);
-                            }
-                          },
-                          'plain-text',
-                          '',
-                          'numeric'
+                          `Enter kWh saved for "${goal.title}"`,
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            { text: '+1 kWh', onPress: () => handleContribute(goal.id, 1) },
+                            { text: '+5 kWh', onPress: () => handleContribute(goal.id, 5) },
+                            { text: '+10 kWh', onPress: () => handleContribute(goal.id, 10) },
+                          ]
                         );
                       }}
                     >
-                      <Text style={styles.contributeButtonText}>+ Contribute</Text>
+                      <LinearGradient
+                        colors={['#00E676', '#00C853']}
+                        style={s.contributeButton}
+                      >
+                        <Text style={s.contributeButtonText}>+ Contribute</Text>
+                      </LinearGradient>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -189,77 +197,84 @@ const CommunityGoalsScreen = () => {
         )}
       </ScrollView>
 
-      <TouchableOpacity style={styles.fab} onPress={() => setShowModal(true)}>
-        <Text style={styles.fabText}>+ Create Goal</Text>
+      <TouchableOpacity onPress={() => setShowModal(true)}>
+        <LinearGradient colors={['#00E676', '#00C853']} style={s.fab}>
+          <Text style={s.fabText}>+ Create Goal</Text>
+        </LinearGradient>
       </TouchableOpacity>
 
       <Modal visible={showModal} animationType="slide" transparent={true}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Create Community Goal</Text>
+        <View style={s.modalOverlay}>
+          <View style={s.modalContent}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>Create Community Goal</Text>
               <TouchableOpacity onPress={() => setShowModal(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Text style={s.modalClose}>✕</Text>
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalBody}>
-              <Text style={styles.label}>Goal Title*</Text>
+            <ScrollView style={s.modalBody}>
+              <Text style={s.label}>Goal Title*</Text>
               <TextInput
-                style={styles.input}
+                style={s.input}
                 value={title}
                 onChangeText={setTitle}
                 placeholder="e.g., Save 100 kWh this month"
-                placeholderTextColor="#999"
+                placeholderTextColor={Colors.textMuted}
               />
 
-              <Text style={styles.label}>Description</Text>
+              <Text style={s.label}>Description</Text>
               <TextInput
-                style={[styles.input, styles.textArea]}
+                style={[s.input, s.textArea]}
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Add more details about this goal..."
-                placeholderTextColor="#999"
+                placeholderTextColor={Colors.textMuted}
                 multiline
                 numberOfLines={3}
               />
 
-              <Text style={styles.label}>Target Energy (kWh)*</Text>
+              <Text style={s.label}>Target Energy (kWh)*</Text>
               <TextInput
-                style={styles.input}
+                style={s.input}
                 value={targetEnergy}
                 onChangeText={setTargetEnergy}
                 placeholder="100"
                 keyboardType="decimal-pad"
-                placeholderTextColor="#999"
+                placeholderTextColor={Colors.textMuted}
               />
 
-              <Text style={styles.label}>Participants (comma-separated)</Text>
+              <Text style={s.label}>Participants (comma-separated)</Text>
               <TextInput
-                style={styles.input}
+                style={s.input}
                 value={participants}
                 onChangeText={setParticipants}
                 placeholder="John, Sarah, Mike..."
-                placeholderTextColor="#999"
+                placeholderTextColor={Colors.textMuted}
               />
 
-              <Text style={styles.hint}>
+              <Text style={s.hint}>
                 Default deadline is 30 days from now
               </Text>
             </ScrollView>
 
-            <View style={styles.modalFooter}>
+            <View style={s.modalFooter}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
+                style={[s.modalButton, s.cancelButton]}
                 onPress={() => setShowModal(false)}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={s.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.createButton]}
+                style={s.modalButton}
                 onPress={handleCreateGoal}
               >
-                <Text style={styles.createButtonText}>Create Goal</Text>
+                <LinearGradient
+                  colors={['#00E676', '#00C853']}
+                  style={s.createButton}
+                >
+                  <Text style={s.createButtonText}>Create Goal</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           </View>
@@ -269,31 +284,38 @@ const CommunityGoalsScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.background,
   },
   header: {
-    backgroundColor: '#673AB7',
-    padding: 20,
-    paddingTop: 40,
+    paddingTop: 54,
+    paddingBottom: 28,
+    paddingHorizontal: Spacing.page,
+    alignItems: 'center',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 5,
+  headerLabel: {
+    ...Typography.overline,
+    color: Colors.primary,
+    marginBottom: 4,
   },
-  subtitle: {
-    fontSize: 14,
+  headerTitle: {
+    ...Typography.displaySmall,
     color: '#fff',
-    opacity: 0.9,
   },
   content: {
     flex: 1,
-    padding: 20,
+    padding: Spacing.page,
   },
+  localNotice: {
+    marginHorizontal: Spacing.page,
+    marginTop: Spacing.page,
+    backgroundColor: Colors.primarySoft,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+  },
+  localNoticeText: { ...Typography.bodySmall, color: Colors.primaryDark, lineHeight: 18 },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -302,182 +324,170 @@ const styles = StyleSheet.create({
   },
   emptyIcon: {
     fontSize: 80,
-    marginBottom: 20,
+    marginBottom: Spacing.page,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 10,
+    ...Typography.h1,
+    color: Colors.text,
+    marginBottom: Spacing.md,
   },
   emptyText: {
-    fontSize: 14,
-    color: '#666',
+    ...Typography.bodyMedium,
+    color: Colors.textSecondary,
     textAlign: 'center',
   },
   goalCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 15,
-    elevation: 3,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.card,
+    padding: Spacing.page,
+    marginBottom: Spacing.lg,
+    ...Shadows.md,
   },
   goalHeader: {
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   goalTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 5,
+    marginBottom: Spacing.xs,
   },
   goalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    ...Typography.h2,
+    color: Colors.text,
     flex: 1,
   },
   achievedBadge: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: Colors.primarySoft,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: Radius.md,
   },
   achievedText: {
-    color: '#4CAF50',
-    fontSize: 12,
-    fontWeight: '600',
+    ...Typography.labelSmall,
+    color: Colors.success,
   },
   creator: {
-    fontSize: 12,
-    color: '#999',
+    ...Typography.bodySmall,
+    color: Colors.textMuted,
   },
   goalDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 15,
-    lineHeight: 20,
+    ...Typography.bodyMedium,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.lg,
   },
   targetInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 15,
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    backgroundColor: '#F3E5F5',
-    borderRadius: 8,
+    marginBottom: Spacing.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    backgroundColor: Colors.primarySoft,
+    borderRadius: Radius.sm,
   },
   targetLabel: {
-    fontSize: 14,
-    color: '#673AB7',
-    fontWeight: '600',
-    marginRight: 8,
+    ...Typography.label,
+    color: Colors.primaryDark,
+    marginRight: Spacing.sm,
   },
   targetValue: {
-    fontSize: 16,
-    color: '#673AB7',
-    fontWeight: 'bold',
+    ...Typography.statSmall,
+    color: Colors.primaryDark,
   },
   progressSection: {
-    marginBottom: 15,
+    marginBottom: Spacing.lg,
   },
   progressInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   progressLabel: {
-    fontSize: 13,
-    color: '#666',
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
   },
   progressValue: {
-    fontSize: 13,
+    ...Typography.bodySmall,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.text,
   },
   progressBar: {
     height: 10,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: Colors.border,
     borderRadius: 5,
     overflow: 'hidden',
-    marginBottom: 5,
+    marginBottom: Spacing.xs,
   },
   progressFill: {
     height: '100%',
     borderRadius: 5,
   },
   progressPercentage: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#673AB7',
+    ...Typography.statSmall,
+    color: Colors.primary,
     textAlign: 'right',
   },
   participantsSection: {
-    marginBottom: 15,
+    marginBottom: Spacing.lg,
   },
   participantsLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    ...Typography.label,
+    color: Colors.text,
+    marginBottom: Spacing.sm,
   },
   participantsList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: Spacing.sm,
   },
   participantChip: {
-    backgroundColor: '#E1BEE7',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+    borderRadius: Radius.card,
   },
   participantName: {
-    fontSize: 12,
-    color: '#673AB7',
+    ...Typography.bodySmall,
+    color: Colors.primaryDeep,
     fontWeight: '500',
   },
   goalFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 15,
+    paddingTop: Spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
+    borderTopColor: Colors.divider,
   },
   deadline: {
-    fontSize: 13,
-    color: '#666',
+    ...Typography.label,
+    color: Colors.textSecondary,
   },
   deadlineUrgent: {
-    color: '#F44336',
+    color: Colors.danger,
     fontWeight: '600',
   },
   contributeButton: {
-    backgroundColor: '#673AB7',
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: Spacing.page,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.pill,
   },
   contributeButtonText: {
+    ...Typography.label,
     color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
   },
   fab: {
     position: 'absolute',
     bottom: 20,
     right: 20,
-    backgroundColor: '#673AB7',
     paddingHorizontal: 25,
     paddingVertical: 15,
-    borderRadius: 30,
-    elevation: 6,
+    borderRadius: Radius.pill,
+    ...Shadows.lg,
   },
   fabText: {
+    ...Typography.h3,
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
@@ -485,85 +495,84 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
     maxHeight: '90%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: Spacing.page,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: Colors.border,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    ...Typography.h2,
+    color: Colors.text,
   },
   modalClose: {
     fontSize: 24,
-    color: '#999',
+    color: Colors.textMuted,
   },
   modalBody: {
-    padding: 20,
+    padding: Spacing.page,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-    marginTop: 15,
+    ...Typography.label,
+    color: Colors.text,
+    marginBottom: Spacing.sm,
+    marginTop: Spacing.lg,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    color: '#333',
-    backgroundColor: '#FAFAFA',
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
+    padding: Spacing.md,
+    ...Typography.bodyMedium,
+    color: Colors.text,
+    backgroundColor: Colors.background,
   },
   textArea: {
     height: 80,
     textAlignVertical: 'top',
   },
   hint: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 15,
+    ...Typography.bodySmall,
+    color: Colors.textMuted,
+    marginTop: Spacing.lg,
     fontStyle: 'italic',
   },
   modalFooter: {
     flexDirection: 'row',
-    padding: 20,
-    gap: 10,
+    padding: Spacing.page,
+    gap: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
+    borderTopColor: Colors.border,
   },
   modalButton: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
+    borderRadius: Radius.sm,
+    overflow: 'hidden',
   },
   cancelButton: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: Colors.background,
+    paddingVertical: 14,
+    alignItems: 'center',
   },
   cancelButtonText: {
-    color: '#666',
-    fontSize: 16,
-    fontWeight: '600',
+    ...Typography.h3,
+    color: Colors.textSecondary,
   },
   createButton: {
-    backgroundColor: '#673AB7',
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderRadius: Radius.sm,
   },
   createButtonText: {
+    ...Typography.h3,
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
 

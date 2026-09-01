@@ -7,7 +7,7 @@ export const initializeTts = async () => {
   try {
     // Set default language
     await Tts.setDefaultLanguage('en-US');
-    
+
     // Set default rate (speed of speech)
     await Tts.setDefaultRate(0.5);
     
@@ -22,6 +22,10 @@ export const initializeTts = async () => {
       await Tts.setDefaultVoice(englishVoice.id);
     }
     
+    Tts.addEventListener('tts-start', () => { isSpeaking = true; });
+    Tts.addEventListener('tts-finish', () => { isSpeaking = false; });
+    Tts.addEventListener('tts-cancel', () => { isSpeaking = false; });
+
     console.log('TTS initialized successfully');
   } catch (error) {
     console.error('Error initializing TTS:', error);
@@ -117,18 +121,16 @@ export const isTtsAvailable = async (): Promise<boolean> => {
   try {
     const engines = await Tts.engines();
     return engines.length > 0;
-  } catch (error) {
+  } catch {
     return false;
   }
 };
 
 /**
- * Get TTS status
+ * Get TTS status (whether speech is currently active)
  */
-export const getTtsStatus = (): Promise<boolean> => {
-  return new Promise((resolve) => {
-    Tts.addEventListener('tts-start', () => resolve(true));
-    Tts.addEventListener('tts-finish', () => resolve(false));
-    Tts.addEventListener('tts-cancel', () => resolve(false));
-  });
+let isSpeaking = false;
+
+export const getTtsStatus = (): boolean => {
+  return isSpeaking;
 };

@@ -33,6 +33,8 @@ class AIRecommendationEngine {
   private recommendations: AIRecommendation[] = [];
   private usageHistory: UsageRecord[] = [];
   private patterns: UsagePattern[] = [];
+  private electricityRate = 0.12;
+  private currency = '$';
 
   private constructor() {}
 
@@ -46,9 +48,16 @@ class AIRecommendationEngine {
   /**
    * Initialize AI engine with historical data
    */
-  public async initialize(appliances: Appliance[], usageRecords: UsageRecord[]): Promise<void> {
+  public async initialize(
+    appliances: Appliance[],
+    usageRecords: UsageRecord[],
+    electricityRate: number = 0.12,
+    currency: string = '$',
+  ): Promise<void> {
     try {
       this.usageHistory = usageRecords;
+      this.electricityRate = Math.max(0, electricityRate);
+      this.currency = currency || '$';
       await this.analyzeUsagePatterns(appliances, usageRecords);
       await this.generateRecommendations(appliances);
       console.log('AI Recommendation Engine initialized');
@@ -144,11 +153,11 @@ class AIRecommendationEngine {
         this.recommendations.push({
           id: `rec-${Date.now()}-${appliance.id}`,
           title: `High Energy Consumer: ${appliance.name}`,
-          description: `Your ${appliance.name} consumes ${((appliance.powerRating * appliance.hoursPerDay * 30) / 1000).toFixed(1)} kWh/month. Consider reducing usage by 2 hours/day to save up to ${(((appliance.powerRating * 2 * 30) / 1000) * 0.12).toFixed(2)} $/month.`,
+          description: `Your ${appliance.name} consumes ${((appliance.powerRating * appliance.hoursPerDay * 30) / 1000).toFixed(1)} kWh/month. Consider reducing usage by 2 hours/day to save up to ${this.formatCost((appliance.powerRating * 2 * 30 / 1000) * this.electricityRate)}/month.`,
           category: 'savings',
           priority: 'high',
           potentialSavings: (appliance.powerRating * 2 * 30) / 1000,
-          potentialCostSavings: ((appliance.powerRating * 2 * 30) / 1000) * 0.12,
+          potentialCostSavings: ((appliance.powerRating * 2 * 30) / 1000) * this.electricityRate,
           confidence: 0.9,
           actionable: true,
           action: `Reduce ${appliance.name} usage by 2 hours per day`,
@@ -161,11 +170,11 @@ class AIRecommendationEngine {
         this.recommendations.push({
           id: `rec-upgrade-${Date.now()}-${appliance.id}`,
           title: `Upgrade to Energy-Efficient ${appliance.name}`,
-          description: `Upgrading to an energy-efficient model could reduce consumption by 30-40%, saving approximately ${(((appliance.powerRating * appliance.hoursPerDay * 30) / 1000) * 0.35 * 0.12).toFixed(2)} $/month.`,
+          description: `Upgrading to an energy-efficient model could reduce consumption by 30-40%, saving approximately ${this.formatCost(((appliance.powerRating * appliance.hoursPerDay * 30) / 1000) * 0.35 * this.electricityRate)}/month.`,
           category: 'upgrade',
           priority: 'medium',
           potentialSavings: ((appliance.powerRating * appliance.hoursPerDay * 30) / 1000) * 0.35,
-          potentialCostSavings: ((appliance.powerRating * appliance.hoursPerDay * 30) / 1000) * 0.35 * 0.12,
+          potentialCostSavings: ((appliance.powerRating * appliance.hoursPerDay * 30) / 1000) * 0.35 * this.electricityRate,
           confidence: 0.75,
           actionable: true,
           action: `Research Energy Star certified ${appliance.category} appliances`,
@@ -182,7 +191,7 @@ class AIRecommendationEngine {
           category: 'schedule',
           priority: 'medium',
           potentialSavings: 0,
-          potentialCostSavings: ((appliance.powerRating * appliance.hoursPerDay * 30) / 1000) * 0.03,
+          potentialCostSavings: ((appliance.powerRating * appliance.hoursPerDay * 30) / 1000) * 0.03 * this.electricityRate,
           confidence: 0.65,
           actionable: true,
           action: `Shift ${appliance.name} usage to off-peak hours`,
@@ -226,7 +235,7 @@ class AIRecommendationEngine {
         category: 'behavior',
         priority: 'high',
         potentialSavings: eveningPattern.averageConsumption * 0.2 * 30,
-        potentialCostSavings: eveningPattern.averageConsumption * 0.2 * 30 * 0.12,
+        potentialCostSavings: eveningPattern.averageConsumption * 0.2 * 30 * this.electricityRate,
         confidence: 0.8,
         actionable: true,
         action: 'Move high-energy tasks to off-peak hours',
@@ -244,7 +253,7 @@ class AIRecommendationEngine {
         category: 'efficiency',
         priority: 'medium',
         potentialSavings: nightPattern.averageConsumption * 0.5 * 30,
-        potentialCostSavings: nightPattern.averageConsumption * 0.5 * 30 * 0.12,
+        potentialCostSavings: nightPattern.averageConsumption * 0.5 * 30 * this.electricityRate,
         confidence: 0.85,
         actionable: true,
         action: 'Use smart power strips or unplug devices at night',
@@ -265,7 +274,7 @@ class AIRecommendationEngine {
       category: 'behavior',
       priority: 'low',
       potentialSavings: 50,
-      potentialCostSavings: 6,
+      potentialCostSavings: 50 * this.electricityRate,
       confidence: 0.9,
       actionable: true,
       action: 'Implement smart energy habits',
@@ -321,9 +330,15 @@ class AIRecommendationEngine {
    */
   public async refreshRecommendations(
     appliances: Appliance[],
-    usageRecords: UsageRecord[]
+    usageRecords: UsageRecord[],
+    electricityRate: number = 0.12,
+    currency: string = '$',
   ): Promise<void> {
-    await this.initialize(appliances, usageRecords);
+    await this.initialize(appliances, usageRecords, electricityRate, currency);
+  }
+
+  private formatCost(value: number): string {
+    return `${this.currency}${value.toFixed(2)}`;
   }
 
   /**

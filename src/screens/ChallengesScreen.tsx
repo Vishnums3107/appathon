@@ -8,12 +8,15 @@ import {
   TextInput,
   Alert,
   Modal,
+  StatusBar,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import { Colors, Typography, Spacing, Radius, Shadows } from '../theme';
 import { useEnergy } from '../context/EnergyContext';
 import { format, addDays } from 'date-fns';
 
 const ChallengesScreen = () => {
-  const { challenges, addChallenge, updateChallenge, completeChallenge } = useEnergy();
+  const { challenges, addChallenge, updateChallenge, completeChallenge, deleteChallenge } = useEnergy();
   const [showModal, setShowModal] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -27,7 +30,7 @@ const ChallengesScreen = () => {
       return;
     }
 
-    const durationDays = parseInt(duration);
+    const durationDays = parseInt(duration, 10);
     const now = new Date();
 
     await addChallenge({
@@ -60,7 +63,7 @@ const ChallengesScreen = () => {
     if (!challenge) return;
 
     const newProgress = Math.min(challenge.currentProgress + progress, challenge.target);
-    
+
     updateChallenge(challengeId, {
       currentProgress: newProgress,
     });
@@ -74,8 +77,8 @@ const ChallengesScreen = () => {
     }
   };
 
-  const getChallengeIcon = (type: string) => {
-    switch (type) {
+  const getChallengeIcon = (challengeType: string) => {
+    switch (challengeType) {
       case 'energy': return '⚡';
       case 'cost': return '💰';
       case 'streak': return '🔥';
@@ -83,8 +86,8 @@ const ChallengesScreen = () => {
     }
   };
 
-  const getChallengeUnit = (type: string) => {
-    switch (type) {
+  const getChallengeUnit = (challengeType: string) => {
+    switch (challengeType) {
       case 'energy': return 'kWh';
       case 'cost': return '$';
       case 'streak': return 'days';
@@ -96,17 +99,18 @@ const ChallengesScreen = () => {
   const completedChallenges = challenges.filter(c => c.isCompleted);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>🎯 Energy Challenges</Text>
-        <Text style={styles.subtitle}>Create and track your challenges</Text>
-      </View>
+    <View style={s.container}>
+      <StatusBar barStyle="light-content" backgroundColor={Colors.dark} />
+      <LinearGradient colors={['#0B1120', '#162032']} style={s.header}>
+        <Text style={s.headerLabel}>CHALLENGES</Text>
+        <Text style={s.headerTitle}>Energy Challenges</Text>
+      </LinearGradient>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={s.content}>
         {/* Active Challenges */}
         {activeChallenges.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Active Challenges</Text>
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Active Challenges</Text>
             {activeChallenges.map((challenge) => {
               const progress = (challenge.currentProgress / challenge.target) * 100;
               const daysLeft = Math.ceil(
@@ -115,77 +119,91 @@ const ChallengesScreen = () => {
               const isExpired = daysLeft < 0;
 
               return (
-                <View key={challenge.id} style={styles.challengeCard}>
-                  <View style={styles.challengeHeader}>
-                    <Text style={styles.challengeIcon}>{getChallengeIcon(challenge.type)}</Text>
-                    <View style={styles.challengeInfo}>
-                      <Text style={styles.challengeTitle}>{challenge.title}</Text>
-                      <Text style={styles.challengeType}>{challenge.type.toUpperCase()}</Text>
+                <View key={challenge.id} style={s.challengeCard}>
+                  <View style={s.challengeHeader}>
+                    <Text style={s.challengeIcon}>{getChallengeIcon(challenge.type)}</Text>
+                    <View style={s.challengeInfo}>
+                      <Text style={s.challengeTitle}>{challenge.title}</Text>
+                      <Text style={s.challengeType}>{challenge.type.toUpperCase()}</Text>
                     </View>
                   </View>
 
                   {challenge.description ? (
-                    <Text style={styles.challengeDescription}>{challenge.description}</Text>
+                    <Text style={s.challengeDescription}>{challenge.description}</Text>
                   ) : null}
 
-                  <View style={styles.targetBox}>
-                    <Text style={styles.targetLabel}>Target:</Text>
-                    <Text style={styles.targetValue}>
+                  <View style={s.targetBox}>
+                    <Text style={s.targetLabel}>Target:</Text>
+                    <Text style={s.targetValue}>
                       {challenge.target} {getChallengeUnit(challenge.type)}
                     </Text>
                   </View>
 
-                  <View style={styles.progressContainer}>
-                    <View style={styles.progressHeader}>
-                      <Text style={styles.progressLabel}>Progress</Text>
-                      <Text style={styles.progressValue}>
+                  <View style={s.progressContainer}>
+                    <View style={s.progressHeader}>
+                      <Text style={s.progressLabel}>Progress</Text>
+                      <Text style={s.progressValue}>
                         {challenge.currentProgress.toFixed(1)} / {challenge.target} {getChallengeUnit(challenge.type)}
                       </Text>
                     </View>
-                    <View style={styles.progressBar}>
+                    <View style={s.progressBar}>
                       <View
                         style={[
-                          styles.progressFill,
+                          s.progressFill,
                           { width: `${Math.min(progress, 100)}%` },
                         ]}
                       />
                     </View>
-                    <Text style={styles.progressPercentage}>{progress.toFixed(0)}%</Text>
+                    <Text style={s.progressPercentage}>{progress.toFixed(0)}%</Text>
                   </View>
 
-                  <View style={styles.challengeFooter}>
-                    <View style={[styles.timeLeft, isExpired && styles.timeExpired]}>
-                      <Text style={[styles.timeText, isExpired && styles.timeExpiredText]}>
+                  <View style={s.challengeFooter}>
+                    <View style={[s.timeLeft, isExpired && s.timeExpired]}>
+                      <Text style={[s.timeText, isExpired && s.timeExpiredText]}>
                         ⏰ {isExpired ? 'Expired' : `${daysLeft} days left`}
                       </Text>
                     </View>
-                    {!isExpired && (
+                    {isExpired ? (
                       <TouchableOpacity
-                        style={styles.updateButton}
+                        style={s.deleteButton}
+                        onPress={() =>
+                          Alert.alert('Remove Challenge', `Delete "${challenge.title}"?`, [
+                            { text: 'Cancel', style: 'cancel' },
+                            { text: 'Delete', style: 'destructive', onPress: () => deleteChallenge(challenge.id) },
+                          ])
+                        }
+                      >
+                        <Text style={s.deleteButtonText}>Remove</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <TouchableOpacity
                         onPress={() => {
-                          Alert.prompt(
+                          const unit = getChallengeUnit(challenge.type);
+                          Alert.alert(
                             'Update Progress',
-                            `How much progress have you made? (${getChallengeUnit(challenge.type)})`,
-                            (value) => {
-                              const amount = parseFloat(value);
-                              if (!isNaN(amount) && amount > 0) {
-                                handleProgressUpdate(challenge.id, amount);
-                              }
-                            },
-                            'plain-text',
-                            '',
-                            'numeric'
+                            `How much progress? (${unit})`,
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              { text: `+1 ${unit}`, onPress: () => handleProgressUpdate(challenge.id, 1) },
+                              { text: `+5 ${unit}`, onPress: () => handleProgressUpdate(challenge.id, 5) },
+                              { text: `+10 ${unit}`, onPress: () => handleProgressUpdate(challenge.id, 10) },
+                            ]
                           );
                         }}
                       >
-                        <Text style={styles.updateButtonText}>+ Update</Text>
+                        <LinearGradient
+                          colors={['#00E676', '#00C853']}
+                          style={s.updateButton}
+                        >
+                          <Text style={s.updateButtonText}>+ Update</Text>
+                        </LinearGradient>
                       </TouchableOpacity>
                     )}
                   </View>
 
                   {challenge.reward && (
-                    <View style={styles.rewardBox}>
-                      <Text style={styles.rewardText}>🏆 Reward: {challenge.reward}</Text>
+                    <View style={s.rewardBox}>
+                      <Text style={s.rewardText}>🏆 Reward: {challenge.reward}</Text>
                     </View>
                   )}
                 </View>
@@ -196,27 +214,38 @@ const ChallengesScreen = () => {
 
         {/* Completed Challenges */}
         {completedChallenges.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Completed ✅</Text>
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Completed</Text>
             {completedChallenges.map((challenge) => (
-              <View key={challenge.id} style={[styles.challengeCard, styles.completedCard]}>
-                <View style={styles.completedBadge}>
-                  <Text style={styles.completedBadgeText}>✅ COMPLETED</Text>
+              <View key={challenge.id} style={[s.challengeCard, s.completedCard]}>
+                <View style={s.completedBadge}>
+                  <Text style={s.completedBadgeText}>COMPLETED</Text>
                 </View>
-                <View style={styles.challengeHeader}>
-                  <Text style={styles.challengeIcon}>{getChallengeIcon(challenge.type)}</Text>
-                  <View style={styles.challengeInfo}>
-                    <Text style={styles.challengeTitle}>{challenge.title}</Text>
-                    <Text style={styles.completedDate}>
+                <View style={s.challengeHeader}>
+                  <Text style={s.challengeIcon}>{getChallengeIcon(challenge.type)}</Text>
+                  <View style={s.challengeInfo}>
+                    <Text style={s.challengeTitle}>{challenge.title}</Text>
+                    <Text style={s.completedDate}>
                       Completed {format(new Date(challenge.endDate), 'MMM dd, yyyy')}
                     </Text>
                   </View>
                 </View>
                 {challenge.reward && (
-                  <View style={styles.rewardEarned}>
-                    <Text style={styles.rewardEarnedText}>🏆 {challenge.reward}</Text>
+                  <View style={s.rewardEarned}>
+                    <Text style={s.rewardEarnedText}>🏆 {challenge.reward}</Text>
                   </View>
                 )}
+                <TouchableOpacity
+                  style={s.deleteCompletedBtn}
+                  onPress={() =>
+                    Alert.alert('Remove Challenge', `Delete "${challenge.title}"?`, [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Delete', style: 'destructive', onPress: () => deleteChallenge(challenge.id) },
+                    ])
+                  }
+                >
+                  <Text style={s.deleteCompletedBtnText}>Remove</Text>
+                </TouchableOpacity>
               </View>
             ))}
           </View>
@@ -224,21 +253,21 @@ const ChallengesScreen = () => {
 
         {/* Empty State */}
         {challenges.length === 0 && (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>🎯</Text>
-            <Text style={styles.emptyTitle}>No Challenges Yet</Text>
-            <Text style={styles.emptyText}>
+          <View style={s.emptyContainer}>
+            <Text style={s.emptyIcon}>🎯</Text>
+            <Text style={s.emptyTitle}>No Challenges Yet</Text>
+            <Text style={s.emptyText}>
               Create your first challenge and start achieving energy-saving goals!
             </Text>
           </View>
         )}
 
         {/* Challenge Templates */}
-        <View style={styles.templatesSection}>
-          <Text style={styles.templatesTitle}>Quick Challenge Templates</Text>
+        <View style={s.templatesSection}>
+          <Text style={s.templatesTitle}>Quick Challenge Templates</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <TouchableOpacity
-              style={styles.templateCard}
+              style={s.templateCard}
               onPress={() => {
                 setType('energy');
                 setTitle('Save 10 kWh in a Week');
@@ -247,13 +276,13 @@ const ChallengesScreen = () => {
                 setShowModal(true);
               }}
             >
-              <Text style={styles.templateIcon}>⚡</Text>
-              <Text style={styles.templateTitle}>Energy Saver</Text>
-              <Text style={styles.templateDesc}>Save 10 kWh in 7 days</Text>
+              <Text style={s.templateIcon}>⚡</Text>
+              <Text style={s.templateTitle}>Energy Saver</Text>
+              <Text style={s.templateDesc}>Save 10 kWh in 7 days</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.templateCard}
+              style={s.templateCard}
               onPress={() => {
                 setType('cost');
                 setTitle('Reduce Bill by $10');
@@ -262,13 +291,13 @@ const ChallengesScreen = () => {
                 setShowModal(true);
               }}
             >
-              <Text style={styles.templateIcon}>💰</Text>
-              <Text style={styles.templateTitle}>Bill Reducer</Text>
-              <Text style={styles.templateDesc}>Save $10 in 30 days</Text>
+              <Text style={s.templateIcon}>💰</Text>
+              <Text style={s.templateTitle}>Bill Reducer</Text>
+              <Text style={s.templateDesc}>Save $10 in 30 days</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.templateCard}
+              style={s.templateCard}
               onPress={() => {
                 setType('streak');
                 setTitle('14-Day Eco Streak');
@@ -277,98 +306,105 @@ const ChallengesScreen = () => {
                 setShowModal(true);
               }}
             >
-              <Text style={styles.templateIcon}>🔥</Text>
-              <Text style={styles.templateTitle}>Streak Master</Text>
-              <Text style={styles.templateDesc}>14-day streak</Text>
+              <Text style={s.templateIcon}>🔥</Text>
+              <Text style={s.templateTitle}>Streak Master</Text>
+              <Text style={s.templateDesc}>14-day streak</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
       </ScrollView>
 
-      <TouchableOpacity style={styles.fab} onPress={() => setShowModal(true)}>
-        <Text style={styles.fabText}>+ New Challenge</Text>
+      <TouchableOpacity onPress={() => setShowModal(true)}>
+        <LinearGradient colors={['#00E676', '#00C853']} style={s.fab}>
+          <Text style={s.fabText}>+ New Challenge</Text>
+        </LinearGradient>
       </TouchableOpacity>
 
       {/* Create Challenge Modal */}
       <Modal visible={showModal} animationType="slide" transparent={true}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Create Challenge</Text>
+        <View style={s.modalOverlay}>
+          <View style={s.modalContent}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>Create Challenge</Text>
               <TouchableOpacity onPress={() => { setShowModal(false); resetForm(); }}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Text style={s.modalClose}>✕</Text>
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalBody}>
-              <Text style={styles.label}>Challenge Title*</Text>
+            <ScrollView style={s.modalBody}>
+              <Text style={s.label}>Challenge Title*</Text>
               <TextInput
-                style={styles.input}
+                style={s.input}
                 value={title}
                 onChangeText={setTitle}
                 placeholder="e.g., Save 20 kWh this week"
-                placeholderTextColor="#999"
+                placeholderTextColor={Colors.textMuted}
               />
 
-              <Text style={styles.label}>Description</Text>
+              <Text style={s.label}>Description</Text>
               <TextInput
-                style={[styles.input, styles.textArea]}
+                style={[s.input, s.textArea]}
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Add details about this challenge..."
-                placeholderTextColor="#999"
+                placeholderTextColor={Colors.textMuted}
                 multiline
                 numberOfLines={2}
               />
 
-              <Text style={styles.label}>Challenge Type*</Text>
-              <View style={styles.typeSelector}>
+              <Text style={s.label}>Challenge Type*</Text>
+              <View style={s.typeSelector}>
                 {(['energy', 'cost', 'streak', 'custom'] as const).map((t) => (
                   <TouchableOpacity
                     key={t}
-                    style={[styles.typeButton, type === t && styles.typeButtonActive]}
+                    style={[s.typeButton, type === t && s.typeButtonActive]}
                     onPress={() => setType(t)}
                   >
-                    <Text style={[styles.typeButtonText, type === t && styles.typeButtonTextActive]}>
+                    <Text style={[s.typeButtonText, type === t && s.typeButtonTextActive]}>
                       {t.charAt(0).toUpperCase() + t.slice(1)}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <Text style={styles.label}>Target ({getChallengeUnit(type)})*</Text>
+              <Text style={s.label}>Target ({getChallengeUnit(type)})*</Text>
               <TextInput
-                style={styles.input}
+                style={s.input}
                 value={target}
                 onChangeText={setTarget}
                 placeholder="e.g., 20"
                 keyboardType="decimal-pad"
-                placeholderTextColor="#999"
+                placeholderTextColor={Colors.textMuted}
               />
 
-              <Text style={styles.label}>Duration (days)*</Text>
+              <Text style={s.label}>Duration (days)*</Text>
               <TextInput
-                style={styles.input}
+                style={s.input}
                 value={duration}
                 onChangeText={setDuration}
                 placeholder="7"
                 keyboardType="number-pad"
-                placeholderTextColor="#999"
+                placeholderTextColor={Colors.textMuted}
               />
             </ScrollView>
 
-            <View style={styles.modalFooter}>
+            <View style={s.modalFooter}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
+                style={[s.modalButton, s.cancelButton]}
                 onPress={() => { setShowModal(false); resetForm(); }}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={s.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, styles.createButton]}
+                style={s.modalButton}
                 onPress={handleCreateChallenge}
               >
-                <Text style={styles.createButtonText}>Create</Text>
+                <LinearGradient
+                  colors={['#00E676', '#00C853']}
+                  style={s.createButton}
+                >
+                  <Text style={s.createButtonText}>Create</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           </View>
@@ -378,213 +414,225 @@ const ChallengesScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.background,
   },
   header: {
-    backgroundColor: '#FF5722',
-    padding: 20,
-    paddingTop: 40,
+    paddingTop: 54,
+    paddingBottom: 28,
+    paddingHorizontal: Spacing.page,
+    alignItems: 'center',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 5,
+  headerLabel: {
+    ...Typography.overline,
+    color: Colors.primary,
+    marginBottom: 4,
   },
-  subtitle: {
-    fontSize: 14,
+  headerTitle: {
+    ...Typography.displaySmall,
     color: '#fff',
-    opacity: 0.9,
   },
   content: {
     flex: 1,
   },
   section: {
-    padding: 20,
+    padding: Spacing.page,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
+    ...Typography.h2,
+    color: Colors.text,
+    marginBottom: Spacing.lg,
   },
   challengeCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 15,
-    elevation: 3,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.card,
+    padding: Spacing.page,
+    marginBottom: Spacing.lg,
+    ...Shadows.md,
   },
   completedCard: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: Colors.primarySoft,
     borderLeftWidth: 4,
-    borderLeftColor: '#4CAF50',
+    borderLeftColor: Colors.success,
   },
   completedBadge: {
     position: 'absolute',
     top: 10,
     right: 10,
-    backgroundColor: '#4CAF50',
+    backgroundColor: Colors.success,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: Radius.md,
   },
   completedBadgeText: {
+    ...Typography.overline,
     color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
   },
   challengeHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
   challengeIcon: {
     fontSize: 40,
-    marginRight: 15,
+    marginRight: Spacing.lg,
   },
   challengeInfo: {
     flex: 1,
   },
   challengeTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
+    ...Typography.h3,
+    color: Colors.text,
+    marginBottom: Spacing.xs,
   },
   challengeType: {
-    fontSize: 11,
-    color: '#FF5722',
-    fontWeight: '600',
-    letterSpacing: 0.5,
+    ...Typography.overline,
+    color: Colors.primary,
   },
   completedDate: {
-    fontSize: 12,
-    color: '#4CAF50',
+    ...Typography.bodySmall,
+    color: Colors.success,
     fontWeight: '500',
   },
   challengeDescription: {
-    fontSize: 13,
-    color: '#666',
-    marginBottom: 12,
-    lineHeight: 18,
+    ...Typography.bodyMedium,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.md,
   },
   targetBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF3E0',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 15,
+    backgroundColor: Colors.primarySoft,
+    padding: Spacing.md,
+    borderRadius: Radius.sm,
+    marginBottom: Spacing.lg,
   },
   targetLabel: {
-    fontSize: 13,
-    color: '#FF9800',
-    fontWeight: '600',
-    marginRight: 8,
+    ...Typography.label,
+    color: Colors.primaryDark,
+    marginRight: Spacing.sm,
   },
   targetValue: {
-    fontSize: 16,
-    color: '#FF9800',
-    fontWeight: 'bold',
+    ...Typography.statSmall,
+    color: Colors.primaryDark,
   },
   progressContainer: {
-    marginBottom: 15,
+    marginBottom: Spacing.lg,
   },
   progressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   progressLabel: {
-    fontSize: 12,
-    color: '#666',
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
   },
   progressValue: {
-    fontSize: 12,
+    ...Typography.bodySmall,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.text,
   },
   progressBar: {
     height: 10,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: Colors.border,
     borderRadius: 5,
     overflow: 'hidden',
-    marginBottom: 5,
+    marginBottom: Spacing.xs,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#FF5722',
+    backgroundColor: Colors.primary,
     borderRadius: 5,
   },
   progressPercentage: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#FF5722',
+    ...Typography.label,
+    color: Colors.primary,
     textAlign: 'right',
   },
   challengeFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 12,
+    paddingTop: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
+    borderTopColor: Colors.divider,
   },
   timeLeft: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#E3F2FD',
-    borderRadius: 12,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+    backgroundColor: Colors.accentLight,
+    borderRadius: Radius.md,
   },
   timeExpired: {
-    backgroundColor: '#FFEBEE',
+    backgroundColor: '#FEF2F2',
   },
   timeText: {
-    fontSize: 12,
-    color: '#2196F3',
+    ...Typography.bodySmall,
+    color: Colors.info,
     fontWeight: '500',
   },
   timeExpiredText: {
-    color: '#F44336',
+    color: Colors.danger,
   },
   updateButton: {
-    backgroundColor: '#FF5722',
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: Spacing.page,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.pill,
   },
   updateButtonText: {
+    ...Typography.label,
     color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
+  },
+  deleteButton: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.pill,
+  },
+  deleteButtonText: {
+    ...Typography.label,
+    color: Colors.danger,
+  },
+  deleteCompletedBtn: {
+    marginTop: Spacing.md,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: Radius.sm,
+    padding: Spacing.sm,
+    alignItems: 'center',
+  },
+  deleteCompletedBtnText: {
+    ...Typography.label,
+    color: Colors.danger,
   },
   rewardBox: {
-    marginTop: 12,
-    padding: 10,
-    backgroundColor: '#FFF9C4',
-    borderRadius: 8,
+    marginTop: Spacing.md,
+    padding: Spacing.md,
+    backgroundColor: Colors.primarySoft,
+    borderRadius: Radius.sm,
     borderLeftWidth: 3,
-    borderLeftColor: '#FBC02D',
+    borderLeftColor: Colors.primary,
   },
   rewardText: {
-    fontSize: 12,
-    color: '#F57F17',
+    ...Typography.bodySmall,
+    color: Colors.primaryDeep,
     fontWeight: '500',
   },
   rewardEarned: {
-    marginTop: 10,
-    padding: 10,
-    backgroundColor: '#fff',
-    borderRadius: 8,
+    marginTop: Spacing.md,
+    padding: Spacing.md,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.sm,
   },
   rewardEarnedText: {
-    fontSize: 13,
-    color: '#4CAF50',
-    fontWeight: '600',
+    ...Typography.label,
+    color: Colors.success,
     textAlign: 'center',
   },
   emptyContainer: {
@@ -594,65 +642,61 @@ const styles = StyleSheet.create({
   },
   emptyIcon: {
     fontSize: 80,
-    marginBottom: 20,
+    marginBottom: Spacing.page,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 10,
+    ...Typography.h1,
+    color: Colors.text,
+    marginBottom: Spacing.md,
   },
   emptyText: {
-    fontSize: 14,
-    color: '#666',
+    ...Typography.bodyMedium,
+    color: Colors.textSecondary,
     textAlign: 'center',
   },
   templatesSection: {
-    padding: 20,
+    padding: Spacing.page,
     paddingTop: 0,
   },
   templatesTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
+    ...Typography.h3,
+    color: Colors.text,
+    marginBottom: Spacing.lg,
   },
   templateCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 15,
-    marginRight: 12,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.card,
+    padding: Spacing.lg,
+    marginRight: Spacing.md,
     width: 140,
-    elevation: 2,
+    ...Shadows.sm,
   },
   templateIcon: {
     fontSize: 32,
-    marginBottom: 8,
+    marginBottom: Spacing.sm,
   },
   templateTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
+    ...Typography.label,
+    color: Colors.text,
+    marginBottom: Spacing.xs,
   },
   templateDesc: {
-    fontSize: 11,
-    color: '#666',
+    ...Typography.labelSmall,
+    color: Colors.textSecondary,
+    fontWeight: '400',
   },
   fab: {
     position: 'absolute',
     bottom: 20,
     right: 20,
-    backgroundColor: '#FF5722',
     paddingHorizontal: 25,
     paddingVertical: 15,
-    borderRadius: 30,
-    elevation: 6,
+    borderRadius: Radius.pill,
+    ...Shadows.lg,
   },
   fabText: {
+    ...Typography.h3,
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
@@ -660,46 +704,44 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: Colors.card,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
     maxHeight: '80%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: Spacing.page,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: Colors.border,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    ...Typography.h2,
+    color: Colors.text,
   },
   modalClose: {
     fontSize: 24,
-    color: '#999',
+    color: Colors.textMuted,
   },
   modalBody: {
-    padding: 20,
+    padding: Spacing.page,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-    marginTop: 12,
+    ...Typography.label,
+    color: Colors.text,
+    marginBottom: Spacing.sm,
+    marginTop: Spacing.md,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    color: '#333',
-    backgroundColor: '#FAFAFA',
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
+    padding: Spacing.md,
+    ...Typography.bodyMedium,
+    color: Colors.text,
+    backgroundColor: Colors.background,
   },
   textArea: {
     height: 60,
@@ -707,23 +749,22 @@ const styles = StyleSheet.create({
   },
   typeSelector: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 8,
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
   },
   typeButton: {
     flex: 1,
     paddingVertical: 10,
-    borderRadius: 8,
-    backgroundColor: '#F5F5F5',
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.background,
     alignItems: 'center',
   },
   typeButtonActive: {
-    backgroundColor: '#FF5722',
+    backgroundColor: Colors.primary,
   },
   typeButtonText: {
-    fontSize: 13,
-    color: '#666',
-    fontWeight: '500',
+    ...Typography.label,
+    color: Colors.textSecondary,
   },
   typeButtonTextActive: {
     color: '#fff',
@@ -731,32 +772,33 @@ const styles = StyleSheet.create({
   },
   modalFooter: {
     flexDirection: 'row',
-    padding: 20,
-    gap: 10,
+    padding: Spacing.page,
+    gap: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
+    borderTopColor: Colors.border,
   },
   modalButton: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
+    borderRadius: Radius.sm,
+    overflow: 'hidden',
   },
   cancelButton: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: Colors.background,
+    paddingVertical: 14,
+    alignItems: 'center',
   },
   cancelButtonText: {
-    color: '#666',
-    fontSize: 16,
-    fontWeight: '600',
+    ...Typography.h3,
+    color: Colors.textSecondary,
   },
   createButton: {
-    backgroundColor: '#FF5722',
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderRadius: Radius.sm,
   },
   createButtonText: {
+    ...Typography.h3,
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
 
